@@ -9,7 +9,7 @@
 
 Add professional release automation to your personal project with a single step:
 
-**Simply copy the `.github/workflows` directory from this repository into your project's root.**
+**Copy the `prepare-release.yml` and `publish-release.yml` files from `.github/workflows` into your project's `.github/workflows` directory.**
 
 ✨ That's it! Your repository is now enchanted.
 

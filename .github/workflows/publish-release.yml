@@ -9,5 +9,5 @@ permissions:
 
 jobs:
   call-publish:
-    uses: leoweyr/github-release-workflow/src/reusable-publish-release.yml@master
+    uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@develop
     secrets: inherit

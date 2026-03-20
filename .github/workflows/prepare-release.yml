@@ -11,5 +11,5 @@ permissions:
 
 jobs:
   call-prepare:
-    uses: leoweyr/github-release-workflow/src/reusable-prepare-release.yml@master
+    uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@develop
     secrets: inherit
