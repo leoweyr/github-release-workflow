@@ -10,4 +10,5 @@ permissions:
 jobs:
   call-publish:
     uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@develop
-    secrets: inherit
+    secrets:
+      ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}

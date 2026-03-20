@@ -19,7 +19,7 @@ on:
         type: string
         default: 'github-actions[bot]@users.noreply.github.com'
     secrets:
-      GITHUB_TOKEN:
+      ACCESS_TOKEN:
         required: true
         description: 'GitHub Token for authentication.'
 
@@ -56,7 +56,7 @@ jobs:
       - name: Generate Changelog Content for PR Body
         env:
           GITHUB_REPO: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
           npx git-cliff --config .change-log-config/cliff.toml --verbose --latest --strip all > pr_body_raw.md
 
@@ -67,7 +67,7 @@ jobs:
       - name: Update CHANGELOG.md File
         env:
           GITHUB_REPO: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
           if [ -f "CHANGELOG.md" ]; then
              # File exists: Prepend new changes (git-cliff intelligently handles headers).
@@ -85,7 +85,7 @@ jobs:
 
       - name: Create Pull Request
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
           gh pr create \
             --title "release: ${{ env.TAG_NAME }}" \

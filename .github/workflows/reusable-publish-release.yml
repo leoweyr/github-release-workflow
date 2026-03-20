@@ -3,7 +3,7 @@ name: Publish Release
 on:
   workflow_call:
     secrets:
-      GITHUB_TOKEN:
+      ACCESS_TOKEN:
         required: true
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
 
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
           gh release create ${{ env.TAG_NAME }} \
             --title "${{ env.VERSION_TITLE }}" \
