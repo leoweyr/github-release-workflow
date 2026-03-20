@@ -37,7 +37,7 @@ jobs:
         with:
           repository: 'leoweyr/github-release-workflow'
           path: .change-log-config
-          sparse-checkout: cliff.toml
+          sparse-checkout: src/cliff.toml
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
