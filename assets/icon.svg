@@ -39,19 +39,19 @@
 
         <!-- === FACE (aligned) === -->
         <g transform="translate(0, 0) rotate(5, 296, 220)">
-            <!-- Left Eye (Partially obscured/perspective) -->
-            <circle cx="210" cy="220" r="32" fill="#ffffff" stroke="#4a5568" stroke-width="3"/>
+            <!-- Left Eye (Nearer/Perspective) -->
+            <circle cx="210" cy="220" r="34" fill="#ffffff" stroke="#4a5568" stroke-width="3"/>
             <circle cx="235" cy="225" r="10" fill="#2d3748"/> 
-            <circle cx="239" cy="221" r="3" fill="#ffffff"/> <!-- Shine (Moved onto pupil) -->
+            <circle cx="239" cy="221" r="3" fill="#ffffff"/> <!-- Shine -->
             
-            <!-- Right Eye (Prominent) -->
-            <circle cx="290" cy="220" r="34" fill="#ffffff" stroke="#4a5568" stroke-width="3"/>
-            <circle cx="315" cy="225" r="10" fill="#2d3748"/> 
-            <circle cx="321" cy="221" r="3" fill="#ffffff"/> 
+            <!-- Right Eye (Further/Perspective) -->
+            <circle cx="290" cy="220" r="30" fill="#ffffff" stroke="#4a5568" stroke-width="3"/>
+            <circle cx="315" cy="225" r="9" fill="#2d3748"/> 
+            <circle cx="321" cy="221" r="2.5" fill="#ffffff"/> 
             
             <!-- Cheeks/Blush -->
-            <ellipse cx="190" cy="250" rx="10" ry="6" fill="#feb2b2" opacity="0.4"/> <!-- Left Cheek (Restored) -->
-            <ellipse cx="330" cy="255" rx="12" ry="8" fill="#feb2b2" opacity="0.5"/> <!-- Right Cheek -->
+            <ellipse cx="190" cy="250" rx="10" ry="6" fill="#feb2b2" opacity="0.4"/> <!-- Left Cheek -->
+            <ellipse cx="330" cy="255" rx="10" ry="6" fill="#feb2b2" opacity="0.5"/> <!-- Right Cheek -->
         </g>
 
         <!-- === NEAR SIDE (Foreground) === -->
