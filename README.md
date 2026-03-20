@@ -1,6 +1,4 @@
-# GitHub Release Workflow
-
-Streamline your software delivery with a production-ready engineering workflow. Automated semantic versioning, changelog generation (via git-cliff), and GitHub release publishing.
+![github-release-workflow](https://socialify.git.ci/leoweyr/github-release-workflow/image?description=1&font=KoHo&forks=1&issues=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2Fleoweyr%2Fgithub-release-workflow%2Frefs%2Fheads%2Fdevelop%2Fassets%2Ficon.svg&name=1&owner=1&pattern=Formal+Invitation&pulls=1&stargazers=1&theme=Light)
 
 > [!IMPORTANT]
 > To ensure changelogs are generated correctly, all git commit messages must follow the **[Conventional Commits](https://www.conventionalcommits.org/)** specification.
