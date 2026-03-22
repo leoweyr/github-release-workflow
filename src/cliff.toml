@@ -62,6 +62,7 @@ commit_preprocessors = [
 ]
 
 commit_parsers = [
+  { message = "^revert", group = "Revert" },
   { message = "^fix", group = "Bug Fixes" },
   { message = "^feat", group = "Features" },
   { message = "^perf", group = "Performance" },
@@ -76,7 +77,6 @@ commit_parsers = [
   { message = "^chore\\(pull\\)", skip = true },
   { message = "^chore", group = "Miscellaneous Tasks" },
   { body = ".*security", group = "Security" },
-  { message = "^[Rr]evert", group = "Revert" },
 ]
 
 protect_breaking_commits = false
