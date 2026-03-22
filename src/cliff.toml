@@ -58,7 +58,7 @@ conventional_commits = true
 filter_unconventional = true
 split_commits = false
 commit_preprocessors = [
-  { pattern = '^Revert "(.+)"$', replace = "revert $1" },
+  { pattern = '^Revert "(.+)"$', replace = "revert: $1" },
 ]
 
 commit_parsers = [
