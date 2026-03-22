@@ -62,7 +62,7 @@ commit_preprocessors = [
 ]
 
 commit_parsers = [
-  { message = "^revert", group = "Revert" },
+  { type = "revert", group = "Revert" },
   { message = "^fix", group = "Bug Fixes" },
   { message = "^feat", group = "Features" },
   { message = "^perf", group = "Performance" },
