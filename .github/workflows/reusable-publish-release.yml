@@ -12,6 +12,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: 👣 Track Workflow Run
+        continue-on-error: true
+        run: |
+          curl -s "https://abacus.jasoncameron.dev/hit/leoweyr/github-release-workflow-usage" > /dev/null  
+
       - name: 📂 Checkout Code
         uses: actions/checkout@v4
         with:
