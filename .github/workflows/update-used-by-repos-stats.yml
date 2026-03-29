@@ -1,0 +1,60 @@
+name: Update Used by Repos Stats
+
+on:
+  push:
+  schedule:
+    - cron: "47 9 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-dependents-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Verify Dependent Repositories in GitHub Code
+        id: get-count
+        env:
+          GH_TOKEN: ${{ secrets.APP_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          QUERIES=(
+            'leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml path:.github/workflows'
+            'leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml path:.github/workflows'
+          )
+
+          ALL_REPOSITORIES=''
+
+          for QUERY in "${QUERIES[@]}"; do
+            echo "🔍 Searching for: $QUERY"
+            RESULTS=$(gh api --paginate -X GET search/code \
+              -F q="$QUERY" \
+              -F per_page=100 \
+              --jq '.items[].repository.full_name')
+
+            if [ -n "$RESULTS" ]; then
+              ALL_REPOSITORIES="$(printf '%s\n%s' "$ALL_REPOSITORIES" "$RESULTS")"
+            fi
+
+            sleep 2
+          done
+
+          ALL_REPOSITORIES=$(printf '%s\n' "$ALL_REPOSITORIES" | sed '/^$/d')
+
+          if [ -z "$ALL_REPOSITORIES" ]; then
+            COUNT=0
+          else
+            COUNT=$(printf '%s\n' "$ALL_REPOSITORIES" | sort -u | wc -l | tr -d ' ')
+          fi
+          
+          echo "✅ Found $COUNT unique dependent repositories."
+          
+          printf 'TOTAL_COUNT=%s\n' "$COUNT" >> "$GITHUB_ENV"
+
+      - name: 🔄 Sync Gist Badge Data
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.APP_GITHUB_TOKEN }}
+          gistID: 0575adecfc13c95f281dfccfe5b76063
+          filename: github-release-workflow-used-by-stats.json
+          label: Used by
+          message: ${{ env.TOTAL_COUNT }} repos
+          color: "#CCA414"

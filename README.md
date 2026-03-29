@@ -1,5 +1,8 @@
 ![github-release-workflow](https://socialify.git.ci/leoweyr/github-release-workflow/image?description=1&font=KoHo&forks=1&issues=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2Fleoweyr%2Fgithub-release-workflow%2Frefs%2Fheads%2Fdevelop%2Fassets%2Ficon.svg&name=1&owner=1&pattern=Formal+Invitation&pulls=1&stargazers=1&theme=Light)
 
+![Usage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fabacus.jasoncameron.dev%2Fget%2Fleoweyr%2Fgithub-release-workflow-usage&query=%24.value&label=Usage&color=blue&suffix=%20times)
+![Used by Stats](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/leoweyr/0575adecfc13c95f281dfccfe5b76063/raw/github-release-workflow-used-by-stats.json)
+
 > [!IMPORTANT]
 > To ensure changelogs are generated correctly, all git commit messages must follow the **[Conventional Commits](https://www.conventionalcommits.org/)** specification.
 >
