@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.0.1](https://github.com/leoweyr/github-release-workflow/compare/v1.0.0...v1.0.1) (2026-03-29)
+### Bug Fixes
+
+* ensure revert commits follow conventional format in changelog ([dd5ada5](https://github.com/leoweyr/github-release-workflow/commit/dd5ada5e8272905e52de6406c80e15e7687b5a66)) [@leoweyr](https://github.com/leoweyr)
+* prioritize revert commits parsing to prevent misclassification as fixes ([1eaef1a](https://github.com/leoweyr/github-release-workflow/commit/1eaef1a20d01fc9c1364450edf8835ec28a8cef5)) [@leoweyr](https://github.com/leoweyr)
+* use type field to correctly classify revert commits in change log ([167d2d0](https://github.com/leoweyr/github-release-workflow/commit/167d2d00feabc34b87df97d9813c5b1ab7a2d27e)) [@leoweyr](https://github.com/leoweyr)
+* preserve original type/scope in revert commit preprocessing ([026c69b](https://github.com/leoweyr/github-release-workflow/commit/026c69bca35934a55b410dfcb0967c04a45784b5)) [@leoweyr](https://github.com/leoweyr)
+* **cliff:** classify build commits under DevOps ([5f388b2](https://github.com/leoweyr/github-release-workflow/commit/5f388b21e821991109aa423c44000d0c1636571f)) [@leoweyr](https://github.com/leoweyr)
+* make release base branch configurable via reusable workflow input ([80556c5](https://github.com/leoweyr/github-release-workflow/commit/80556c58d324283358c651fee2049b8b030d62cd)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Features
+
+* add tracker for reusable workflow usage ([86c093b](https://github.com/leoweyr/github-release-workflow/commit/86c093b0a8ea79899530578d3a86c452cd1cdb4c)) [@leoweyr](https://github.com/leoweyr)
+
+
+### DevOps
+
+* add update used by repos stats workflow ([1c00f3d](https://github.com/leoweyr/github-release-workflow/commit/1c00f3daa4c7858d75a591fe313472e561493709)) [@leoweyr](https://github.com/leoweyr)
+* stabilize reusable workflow dependency search ([4c3e192](https://github.com/leoweyr/github-release-workflow/commit/4c3e1924b3628575dd60216fd88c1699834b193e)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.0.0] (2026-03-20)
 ### Bug Fixes
 
