@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: '20'
+      base-branch:
+        description: 'Base branch name for release pull requests.'
+        required: false
+        type: string
+        default: 'master'
       commit-user-name:
         description: 'Git user name for commit'
         required: false
@@ -95,5 +100,5 @@ jobs:
           gh pr create \
             --title "release: ${{ env.TAG_NAME }}" \
             --body-file pr_body_cleaned.md \
-            --base master \
+            --base ${{ inputs.base-branch }} \
             --head release/${{ env.TAG_NAME }}
