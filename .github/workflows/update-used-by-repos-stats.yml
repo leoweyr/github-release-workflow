@@ -1,0 +1,48 @@
+name: Update Used by Repos Stats
+
+on:
+  push:
+  schedule:
+    - cron: "47 9 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-dependents-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Verify Dependent Repositories in GitHub Code
+        id: get-count
+        env:
+          GH_TOKEN: ${{ secrets.APP_GITHUB_TOKEN }}
+        run: |
+          REUSABLE_PREPARE_RELEASE='"leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml"'
+          REUSABLE_PUBLISH_RELEASE='"leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml"'
+          
+          SEARCH_QUERY="$REUSABLE_PREPARE_RELEASE OR $REUSABLE_PUBLISH_RELEASE path:.github/workflows"
+          
+          sleep 5
+          
+          echo "🔍 Searching for: $SEARCH_QUERY"
+          
+          COUNT=$(gh api -X GET search/code \
+            -F q="$SEARCH_QUERY" \
+            -F per_page=100 \
+            --jq '[.items[].repository.full_name] | unique | length')
+          
+          if [ -z "$COUNT" ] || [ "$COUNT" == "null" ]; then
+            COUNT=0
+          fi
+          
+          echo "✅ Found $COUNT unique dependent repositories."
+          
+          printf 'TOTAL_COUNT=%s\n' "$COUNT" >> "$GITHUB_ENV"
+
+      - name: 🔄 Sync Gist Badge Data
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.APP_GITHUB_TOKEN }}
+          gistID: 0575adecfc13c95f281dfccfe5b76063
+          filename: github-release-workflow-used-by-stats.json
+          label: Used by
+          message: ${{ env.TOTAL_COUNT }} repos
+          color: "#CCA414"

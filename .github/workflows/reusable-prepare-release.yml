@@ -27,44 +27,44 @@ jobs:
   prepare-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: 📂 Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Checkout Config
+      - name: 🔄 Sync Changelog Config
         uses: actions/checkout@v4
         with:
           repository: 'leoweyr/github-release-workflow'
           path: .change-log-config
           sparse-checkout: src/cliff.toml
 
-      - name: Setup Node.js
+      - name: 📦 Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node-verions }}
 
-      - name: Set Environment Variables
+      - name: 🛠️ Set Environment Variables
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      - name: Create Release Branch
+      - name: 🪾 Create Release Branch
         run: |
           git config --global user.name "${{ inputs.commit-user-name }}"
           git config --global user.email "${{ inputs.commit-user-email }}"
           git checkout -b release/${{ env.TAG_NAME }}
 
-      - name: Generate Changelog Content for PR Body
+      - name: 📝 Generate Changelog Content for PR Body
         env:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
           npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --strip all > pr_body_raw.md
 
-      - name: Save PR Body to File
+      - name: 📂 Save PR Body to File
         run: |
           cat pr_body_raw.md | tail -n +2 > pr_body_cleaned.md
 
-      - name: Update CHANGELOG.md File
+      - name: 📝 Update Changelog File
         env:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
@@ -77,13 +77,13 @@ jobs:
              npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output CHANGELOG.md
           fi
 
-      - name: Commit and Push
+      - name: 🔄 Sync Commit and Push
         run: |
           git add CHANGELOG.md
           git commit -m "release: ${{ env.TAG_NAME }}"
           git push origin release/${{ env.TAG_NAME }}
 
-      - name: Create Pull Request
+      - name: 🚀 Deploy Pull Request
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
