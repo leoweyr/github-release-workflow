@@ -15,22 +15,34 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.APP_GITHUB_TOKEN }}
         run: |
-          REUSABLE_PREPARE_RELEASE='"leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml"'
-          REUSABLE_PUBLISH_RELEASE='"leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml"'
-          
-          SEARCH_QUERY="$REUSABLE_PREPARE_RELEASE OR $REUSABLE_PUBLISH_RELEASE path:.github/workflows"
-          
-          sleep 5
-          
-          echo "🔍 Searching for: $SEARCH_QUERY"
-          
-          COUNT=$(gh api -X GET search/code \
-            -F q="$SEARCH_QUERY" \
-            -F per_page=100 \
-            --jq '[.items[].repository.full_name] | unique | length')
-          
-          if [ -z "$COUNT" ] || [ "$COUNT" == "null" ]; then
+          set -euo pipefail
+          QUERIES=(
+            'leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml path:.github/workflows'
+            'leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml path:.github/workflows'
+          )
+
+          ALL_REPOSITORIES=''
+
+          for QUERY in "${QUERIES[@]}"; do
+            echo "🔍 Searching for: $QUERY"
+            RESULTS=$(gh api --paginate -X GET search/code \
+              -F q="$QUERY" \
+              -F per_page=100 \
+              --jq '.items[].repository.full_name')
+
+            if [ -n "$RESULTS" ]; then
+              ALL_REPOSITORIES="$(printf '%s\n%s' "$ALL_REPOSITORIES" "$RESULTS")"
+            fi
+
+            sleep 2
+          done
+
+          ALL_REPOSITORIES=$(printf '%s\n' "$ALL_REPOSITORIES" | sed '/^$/d')
+
+          if [ -z "$ALL_REPOSITORIES" ]; then
             COUNT=0
+          else
+            COUNT=$(printf '%s\n' "$ALL_REPOSITORIES" | sort -u | wc -l | tr -d ' ')
           fi
           
           echo "✅ Found $COUNT unique dependent repositories."
