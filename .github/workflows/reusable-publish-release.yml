@@ -109,8 +109,8 @@ jobs:
             exit 0
           fi
 
-          if [ -z "${{ inputs.trb-node-description }}" ]; then
-            echo '👻 trb-node-description is not configured.'
+          if [ -z "${{ inputs.trb-project-node-name }}" ]; then
+            echo '👻 trb-project-node-name is not configured.'
             printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
             exit 0
           fi
