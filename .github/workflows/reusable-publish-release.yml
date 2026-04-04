@@ -2,9 +2,27 @@ name: Publish Release
 
 on:
   workflow_call:
+    inputs:
+      npm-node-version:
+        description: 'Node.js version for npm publish.'
+        required: false
+        type: string
+        default: '20'
+      npm-package-dir:
+        description: 'Directory containing package.json for npm publish.'
+        required: false
+        type: string
+        default: '.'
+      npm-deploy-command:
+        description: 'Command used to publish npm package.'
+        required: false
+        type: string
+        default: 'npm run deploy'
     secrets:
       ACCESS_TOKEN:
         required: true
+      NPM_TOKEN:
+        required: false
 
 jobs:
   publish-release:
@@ -15,7 +33,7 @@ jobs:
       - name: 👣 Track Workflow Run
         continue-on-error: true
         run: |
-          curl -s "https://abacus.jasoncameron.dev/hit/leoweyr/github-release-workflow-usage" > /dev/null  
+          curl -s "https://abacus.jasoncameron.dev/hit/leoweyr/github-release-workflow-usage" > /dev/null
 
       - name: 📂 Checkout Code
         uses: actions/checkout@v4
@@ -44,3 +62,31 @@ jobs:
             --title "${{ env.VERSION_TITLE }}" \
             --notes-file release_body.md \
             --verify-tag
+
+      - name: 🔍 Verify NPM Token
+        id: verify_npm_token
+        run: |
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+            echo '👻 NPM_TOKEN is not configured.'
+            echo 'enabled=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo 'enabled=true\n' >> "$GITHUB_OUTPUT"
+
+      - name: 🔄 Sync NPM Publish Action
+        if: steps.verify_npm_token.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: 'leoweyr/github-release-workflow'
+          path: .release-workflow
+          sparse-checkout: .github/actions/npm-publish
+
+      - name: 🚀 Deploy NPM Package
+        if: steps.verify_npm_token.outputs.enabled == 'true'
+        uses: ./.release-workflow/.github/actions/npm-publish
+        with:
+          node-version: ${{ inputs.npm-node-version }}
+          package-dir: ${{ inputs.npm-package-dir }}
+          deploy-command: ${{ inputs.npm-deploy-command }}
+          access-token: ${{ secrets.NPM_TOKEN }}

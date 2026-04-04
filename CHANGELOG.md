@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.1.0](https://github.com/leoweyr/github-release-workflow/compare/v1.0.1...v1.1.0) (2026-04-04)
+### Features
+
+* support npm publish ([7191ff0](https://github.com/leoweyr/github-release-workflow/commit/7191ff0f6d537348fc5ccf6115ecbfac8c5dbd19)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.0.1](https://github.com/leoweyr/github-release-workflow/compare/v1.0.0...v1.0.1) (2026-03-29)
 ### Bug Fixes
 

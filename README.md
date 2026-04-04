@@ -1,4 +1,4 @@
-![github-release-workflow](https://socialify.git.ci/leoweyr/github-release-workflow/image?description=1&font=KoHo&forks=1&issues=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2Fleoweyr%2Fgithub-release-workflow%2Frefs%2Fheads%2Fdevelop%2Fassets%2Ficon.svg&name=1&owner=1&pattern=Formal+Invitation&pulls=1&stargazers=1&theme=Light)
+![github-release-workflow](https://socialify.git.ci/leoweyr/github-release-workflow/image?description=1&font=KoHo&logo=https%3A%2F%2Fraw.githubusercontent.com%2Fleoweyr%2Fgithub-release-workflow%2Frefs%2Fheads%2Fdevelop%2Fassets%2Ficon.svg&name=1&owner=1&pattern=Formal+Invitation&theme=Light)
 
 ![Usage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fabacus.jasoncameron.dev%2Fget%2Fleoweyr%2Fgithub-release-workflow-usage&query=%24.value&label=Usage&color=blue&suffix=%20times)
 ![Used by Stats](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/leoweyr/0575adecfc13c95f281dfccfe5b76063/raw/github-release-workflow-used-by-stats.json)
@@ -38,4 +38,17 @@ This workflow streamlines your release process into a few simple steps:
 4.  **Review and Merge**: Review the Pull Request created by the bot.
     *   **Do not modify the Pull Request title or body**, as they are used for the release metadata.
     *   Merge the Pull Request.
-    *   The workflow will automatically create a GitHub Release for you.
+    *   The workflow will automatically create coordinated releases across GitHub and supported package registries.
+
+## 📦 Optional Publishing
+
+> [!NOTE]
+>
+> If the required secret for the release target are not configured, publishing will not start.
+
+Configure target publishing in your user-side entry workflow (`.github/workflows/publish-release.yml`):
+
+| Release Target | Required Secret                                     | User-Side Inputs (`with`)                                                                                                 |
+|----------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| GitHub Release | `ACCESS_TOKEN` (Mapped from `secrets.GITHUB_TOKEN`) | None                                                                                                                      |
+| NPM            | `NPM_TOKEN`                                         | `npm-node-version` (Default `20`)<br/>`npm-package-dir` (Default `.`)<br/>`npm-deploy-command` (Default `npm run deploy`) |
