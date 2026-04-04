@@ -68,11 +68,11 @@ jobs:
         run: |
           if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
             echo '👻 NPM_TOKEN is not configured.'
-            echo 'enabled=false\n' >> "$GITHUB_OUTPUT"
+            printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo 'enabled=true\n' >> "$GITHUB_OUTPUT"
+          printf 'enabled=true\n' >> "$GITHUB_OUTPUT"
 
       - name: 🔄 Sync NPM Publish Action
         if: steps.verify_npm_token.outputs.enabled == 'true'
