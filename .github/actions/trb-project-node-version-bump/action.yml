@@ -1,0 +1,62 @@
+name: 'TRB Project Node Version Bump'
+description: 'Trigger TRB bump project node version workflow dispatch.'
+
+
+inputs:
+  trb-repository:
+    description: 'Target TRB repository.'
+    required: true
+
+  project-node-name:
+    description: 'The description (name) of TRB node.'
+    required: true
+
+  release-version:
+    description: 'Release version from the current publish tag without the v prefix (for example, 1.0.0).'
+    required: true
+
+  release-at:
+    description: 'UTC timestamp of the tagged commit in ISO 8601 format (YYYY-MM-DDTHH:mm:ss.000Z).'
+    required: true
+
+  access-token:
+    description: 'GitHub token with workflow dispatch permission.'
+    required: true
+
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🔍 Verify TRB Repository
+      shell: bash
+      run: |
+        if [ -z '${{ inputs.trb-repository }}' ]; then
+          echo '❌ TRB Repository is required.'
+          exit 1
+        fi
+
+    - name: 🔍 Verify TRB Repository Ref
+      id: repository_ref
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.access-token }}
+      run: |
+        REPOSITORY_REF=$(gh api "repos/${{ inputs.trb-repository }}" --jq '.default_branch')
+        if [ -z "$REPOSITORY_REF" ] || [ "$REPOSITORY_REF" = 'null' ]; then
+          echo '❌ Failed to resolve TRB default branch.'
+          exit 1
+        fi
+
+        printf 'value=%s\n' "$REPOSITORY_REF" >> "$GITHUB_OUTPUT"
+
+    - name: 🚀 Trigger TRB Workflow Dispatch
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.access-token }}
+      run: |
+        gh workflow run 'Bump Node Version' \
+          --repo '${{ inputs.trb-repository }}' \
+          --ref '${{ steps.repository_ref.outputs.value }}' \
+          -f node-description='${{ inputs.project-node-name }}' \
+          -f release-version='${{ inputs.release-version }}' \
+          -f release-at='${{ inputs.release-at }}'

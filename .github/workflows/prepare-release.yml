@@ -1,13 +1,16 @@
 name: Prepare Release
 
+
 on:
   push:
     tags:
       - 'v*'
 
+
 permissions:
   contents: write
   pull-requests: write
+
 
 jobs:
   call-prepare:

@@ -1,5 +1,6 @@
 name: Prepare Release
 
+
 on:
   workflow_call:
     inputs:
@@ -8,25 +9,30 @@ on:
         required: false
         type: string
         default: '20'
+
       base-branch:
         description: 'Base branch name for release pull requests.'
         required: false
         type: string
         default: 'master'
+
       commit-user-name:
         description: 'Git user name for commit'
         required: false
         type: string
         default: 'github-actions[bot]'
+
       commit-user-email:
         description: 'Git user email for commit.'
         required: false
         type: string
         default: 'github-actions[bot]@users.noreply.github.com'
+
     secrets:
       ACCESS_TOKEN:
         required: true
         description: 'GitHub Token for authentication.'
+
 
 jobs:
   prepare-release:
