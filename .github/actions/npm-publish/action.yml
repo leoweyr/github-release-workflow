@@ -1,0 +1,49 @@
+name: 'NPM Publish'
+description: 'Publish package to npm registry.'
+
+inputs:
+  node-version:
+    description: 'Node.js version to use.'
+    required: false
+    default: '20'
+  package-dir:
+    description: 'Directory containing package.json.'
+    required: false
+    default: '.'
+  deploy-command:
+    description: 'Publish command to execute.'
+    required: false
+    default: 'npm run deploy'
+  access-token:
+    description: 'NPM auth token.'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 📦 Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: 🔍 Verify NPM Package File
+      shell: bash
+      working-directory: ${{ inputs.package-dir }}
+      run: |
+        if [ ! -f 'package.json' ]; then
+          echo '❌ package.json Not Found'
+          exit 1
+        fi
+
+    - name: 📦 Install Dependencies
+      shell: bash
+      working-directory: ${{ inputs.package-dir }}
+      run: npm ci
+
+    - name: 🚀 Deploy npm Package
+      shell: bash
+      working-directory: ${{ inputs.package-dir }}
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.access-token }}
+      run: ${{ inputs.deploy-command }}
