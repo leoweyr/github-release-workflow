@@ -1,5 +1,6 @@
 name: Publish Release
 
+
 on:
   workflow_call:
     inputs:
@@ -8,21 +9,37 @@ on:
         required: false
         type: string
         default: '20'
+
       npm-package-dir:
         description: 'Directory containing package.json for npm publish.'
         required: false
         type: string
         default: '.'
+
       npm-deploy-command:
         description: 'Command used to publish npm package.'
         required: false
         type: string
         default: 'npm run deploy'
+
+      trb-repository:
+        description: 'Target TRB repository.'
+        required: false
+        type: string
+        default: ''
+
+      trb-project-node-name:
+        description: 'The description (name) of TRB node.'
+        required: false
+        type: string
+        default: ''
+
     secrets:
       ACCESS_TOKEN:
         required: true
       NPM_TOKEN:
         required: false
+
 
 jobs:
   publish-release:
@@ -44,22 +61,31 @@ jobs:
         id: extract_tag
         run: |
           TITLE="${{ github.event.pull_request.title }}"
-          TAG_NAME=$(echo "$TITLE" | sed 's/release: //')
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          VERSION_TITLE=${TAG_NAME#v}
-          echo "VERSION_TITLE=$VERSION_TITLE" >> $GITHUB_ENV
+          ORIGINAL_TAG_NAME=$(printf '%s' "$TITLE" | sed 's/release: //')
+          RELEASE_VERSION=${ORIGINAL_TAG_NAME#v}
+          TAG_COMMIT_HASH=$(git rev-list -n 1 "$ORIGINAL_TAG_NAME")
+
+          if [ -z "$TAG_COMMIT_HASH" ]; then
+            echo '❌ Tag commit hash not found.'
+            exit 1
+          fi
+
+          RELEASE_AT=$(TZ=UTC git show -s --format="%cd" --date=format-local:"%Y-%m-%dT%H:%M:%S.000Z" "$TAG_COMMIT_HASH")
+          printf 'TAG_NAME=%s\n' "$ORIGINAL_TAG_NAME" >> "$GITHUB_ENV"
+          printf 'RELEASE_VERSION=%s\n' "$RELEASE_VERSION" >> "$GITHUB_ENV"
+          printf 'RELEASE_AT=%s\n' "$RELEASE_AT" >> "$GITHUB_ENV"
 
       - name: 📝 Create Release Body File
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
-        run: echo "$PR_BODY" > release_body.md
+        run: printf '%s\n' "$PR_BODY" > release_body.md
 
       - name: 🚀 Deploy GitHub Release
         env:
           GH_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
           gh release create ${{ env.TAG_NAME }} \
-            --title "${{ env.VERSION_TITLE }}" \
+            --title "${{ env.RELEASE_VERSION }}" \
             --notes-file release_body.md \
             --verify-tag
 
@@ -68,19 +94,38 @@ jobs:
         run: |
           if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
             echo '👻 NPM_TOKEN is not configured.'
-            echo 'enabled=false\n' >> "$GITHUB_OUTPUT"
+            printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo 'enabled=true\n' >> "$GITHUB_OUTPUT"
+          printf 'enabled=true\n' >> "$GITHUB_OUTPUT"
 
-      - name: 🔄 Sync NPM Publish Action
-        if: steps.verify_npm_token.outputs.enabled == 'true'
+      - name: 🔍 Verify TRB Inputs
+        id: verify_trb_inputs
+        run: |
+          if [ -z "${{ inputs.trb-repository }}" ]; then
+            echo '👻 trb-repository is not configured.'
+            printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "${{ inputs.trb-project-node-name }}" ]; then
+            echo '👻 trb-project-node-name is not configured.'
+            printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          printf 'enabled=true\n' >> "$GITHUB_OUTPUT"
+
+      - name: 🔄 Sync Release Actions
+        if: steps.verify_npm_token.outputs.enabled == 'true' || steps.verify_trb_inputs.outputs.enabled == 'true'
         uses: actions/checkout@v4
         with:
           repository: 'leoweyr/github-release-workflow'
           path: .release-workflow
-          sparse-checkout: .github/actions/npm-publish
+          sparse-checkout: |
+            .github/actions/npm-publish
+            .github/actions/trb-project-node-version-bump
 
       - name: 🚀 Deploy NPM Package
         if: steps.verify_npm_token.outputs.enabled == 'true'
@@ -90,3 +135,13 @@ jobs:
           package-dir: ${{ inputs.npm-package-dir }}
           deploy-command: ${{ inputs.npm-deploy-command }}
           access-token: ${{ secrets.NPM_TOKEN }}
+
+      - name: 🚀 Bump TRB Project Node Version
+        if: steps.verify_trb_inputs.outputs.enabled == 'true'
+        uses: ./.release-workflow/.github/actions/trb-project-node-version-bump
+        with:
+          trb-repository: ${{ inputs.trb-repository }}
+          project-node-name: ${{ inputs.trb-project-node-name }}
+          release-version: ${{ env.RELEASE_VERSION }}
+          release-at: ${{ env.RELEASE_AT }}
+          access-token: ${{ secrets.ACCESS_TOKEN }}

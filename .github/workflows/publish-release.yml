@@ -1,11 +1,14 @@
 name: Publish Release
 
+
 on:
   pull_request:
     types: [closed]
 
+
 permissions:
   contents: write
+
 
 jobs:
   call-publish:

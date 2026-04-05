@@ -44,11 +44,12 @@ This workflow streamlines your release process into a few simple steps:
 
 > [!NOTE]
 >
-> If the required secret for the release target are not configured, publishing will not start.
+> If the required inputs or secrets for a release target are not configured, publishing for that target will not start.
 
 Configure target publishing in your user-side entry workflow (`.github/workflows/publish-release.yml`):
 
-| Release Target | Required Secret                                     | User-Side Inputs (`with`)                                                                                                 |
-|----------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| GitHub Release | `ACCESS_TOKEN` (Mapped from `secrets.GITHUB_TOKEN`) | None                                                                                                                      |
-| NPM            | `NPM_TOKEN`                                         | `npm-node-version` (Default `20`)<br/>`npm-package-dir` (Default `.`)<br/>`npm-deploy-command` (Default `npm run deploy`) |
+| Release Target                                                                                                       | Required                                            | User-Side Inputs (`with`)                                                                                                 |
+|----------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| GitHub Release                                                                                                       | `ACCESS_TOKEN` (Mapped from `secrets.GITHUB_TOKEN`) | None                                                                                                                      |
+| npm                                                                                                                  | `NPM_TOKEN`                                         | `npm-node-version` (Default `20`)<br/>`npm-package-dir` (Default `.`)<br/>`npm-deploy-command` (Default `npm run deploy`) |
+| [TODO Requirement Blueprint](https://github.com/leoweyr/todo-requirement-blueprint-spec) (Bump Project Node Version) | `trb-repository`<br/>`trb-project-node-name`        |                                                                                                                           |

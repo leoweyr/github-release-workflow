@@ -1,22 +1,27 @@
 name: 'NPM Publish'
 description: 'Publish package to npm registry.'
 
+
 inputs:
   node-version:
     description: 'Node.js version to use.'
     required: false
     default: '20'
+
   package-dir:
     description: 'Directory containing package.json.'
     required: false
     default: '.'
+
   deploy-command:
     description: 'Publish command to execute.'
     required: false
     default: 'npm run deploy'
+
   access-token:
     description: 'NPM auth token.'
     required: true
+
 
 runs:
   using: 'composite'
