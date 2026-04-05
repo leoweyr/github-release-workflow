@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.2.0](https://github.com/leoweyr/github-release-workflow/compare/v1.1.0...v1.2.0) (2026-04-05)
+### Bug Fixes
+
+* correct NPM_TOKEN gating output ([6173ab3](https://github.com/leoweyr/github-release-workflow/commit/6173ab3a2a1f676b85100f51e11d6a96843b2e73)) [@leoweyr](https://github.com/leoweyr)
+* **publish-release:** align parameters in verify TRB inputs ([7bf326f](https://github.com/leoweyr/github-release-workflow/commit/7bf326f99154667914f3cbb5daad4a392e3a7a29)) [@leoweyr](https://github.com/leoweyr)
+* **publish-release:** align TRB local action path with synced directory ([e9f7736](https://github.com/leoweyr/github-release-workflow/commit/e9f7736bd68503c238280e1dcec553aa6d794a5e)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Features
+
+* support trb project node version bump ([90eecbf](https://github.com/leoweyr/github-release-workflow/commit/90eecbfa1ae50f415195089c58eaac2139a1ef8f)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.1.0](https://github.com/leoweyr/github-release-workflow/compare/v1.0.1...v1.1.0) (2026-04-04)
 ### Features
 
