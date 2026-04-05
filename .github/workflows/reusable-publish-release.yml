@@ -138,7 +138,7 @@ jobs:
 
       - name: 🚀 Bump TRB Project Node Version
         if: steps.verify_trb_inputs.outputs.enabled == 'true'
-        uses: ./.release-workflow/.github/actions/trb-project-version-bump
+        uses: ./.release-workflow/.github/actions/trb-project-node-version-bump
         with:
           trb-repository: ${{ inputs.trb-repository }}
           project-node-name: ${{ inputs.trb-project-node-name }}
