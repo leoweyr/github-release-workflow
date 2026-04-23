@@ -74,7 +74,7 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
-          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --strip all > pr_body_raw.md
+          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --strip all --tag-pattern '^v[0-9].*' > pr_body_raw.md
 
       - name: 📂 Save PR Body to File
         run: |
@@ -87,10 +87,10 @@ jobs:
         run: |
           if [ -f "CHANGELOG.md" ]; then
              # File exists: Prepend new changes (git-cliff intelligently handles headers).
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --prepend CHANGELOG.md
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --prepend CHANGELOG.md --tag-pattern '^v[0-9].*'
           else
              # File missing: Create new with full history and header.
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output CHANGELOG.md
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output CHANGELOG.md --tag-pattern '^v[0-9].*'
           fi
 
       - name: 🔄 Sync Commit and Push
