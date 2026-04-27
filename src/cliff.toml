@@ -54,6 +54,8 @@ postprocessors = []
 
 
 [git]
+# pattern for matching git tags
+tag_pattern = "^v[0-9].*"
 conventional_commits = true
 filter_unconventional = true
 split_commits = false
