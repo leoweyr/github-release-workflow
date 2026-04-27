@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.2.1](https://github.com/leoweyr/github-release-workflow/compare/v1.2.0...v1.2.1) (2026-04-23)
+### Bug Fixes
+
+* **prepare-release:** filter for `v*` tags in release workflow ([9cf4a09](https://github.com/leoweyr/github-release-workflow/commit/9cf4a099c38eef14c1fbcbd61f3d023bf6ad2493)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.2.0](https://github.com/leoweyr/github-release-workflow/compare/v1.1.0...v1.2.0) (2026-04-05)
 ### Bug Fixes
 
