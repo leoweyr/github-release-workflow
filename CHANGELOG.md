@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.2.2](https://github.com/leoweyr/github-release-workflow/compare/v1.2.1...v1.2.2) (2026-05-12)
+### Bug Fixes
+
+* **cliff:** support multiline revert commit messages ([74731d3](https://github.com/leoweyr/github-release-workflow/commit/74731d392a5bc0818f55e2149e7e25d36e3991c5)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.2.1](https://github.com/leoweyr/github-release-workflow/compare/v1.2.0...v1.2.1) (2026-04-23)
 ### Bug Fixes
 
