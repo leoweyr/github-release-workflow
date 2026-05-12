@@ -60,12 +60,12 @@ conventional_commits = true
 filter_unconventional = true
 split_commits = false
 commit_preprocessors = [
-  { pattern = '^Revert "([a-z]+)(\((.+)\))?: (.+)"$', replace = "revert($1:$3): $4" },
-  { pattern = '^Revert "([a-z]+): (.+)"$', replace = "revert($1): $2" },
+  { pattern = '^Revert "([a-z]+)(\((.+)\))?: (.+)"', replace = "revert: $1$2: $4" },
+  { pattern = '^Revert "([a-z]+): (.+)"', replace = "revert: $1: $2" },
 ]
 
 commit_parsers = [
-  { message = "^revert", group = "Revert" },
+  { message = "^(?i)revert", group = "Revert" },
   { message = "^fix", group = "Bug Fixes" },
   { message = "^feat", group = "Features" },
   { message = "^perf", group = "Performance" },
