@@ -21,6 +21,7 @@ Add professional release automation to your personal project with a single step:
 This workflow streamlines your release process into a few simple steps:
 
 1.  **Tag Your Release**: On your development branch (separate from `master` or `main`), create a git tag with a `v` prefix (e.g., `v1.0.0`).
+    
     ```bash
     git tag v1.0.0
     ```
@@ -51,5 +52,56 @@ Configure target publishing in your user-side entry workflow (`.github/workflows
 | Release Target                                                                                                       | Required                                            | User-Side Inputs (`with`)                                                                                                 |
 |----------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
 | GitHub Release                                                                                                       | `ACCESS_TOKEN` (Mapped from `secrets.GITHUB_TOKEN`) | None                                                                                                                      |
-| npm                                                                                                                  | `NPM_TOKEN`                                         | `npm-node-version` (Default `20`)<br/>`npm-package-dir` (Default `.`)<br/>`npm-deploy-command` (Default `npm run deploy`) |
+| NPM                                                                                                                  | `NPM_TOKEN`                                         | `npm-node-version` (Default `20`)<br/>`npm-package-dir` (Default `.`)<br/>`npm-deploy-command` (Default `npm run deploy`) |
 | [TODO Requirement Blueprint](https://github.com/leoweyr/todo-requirement-blueprint-spec) (Bump Project Node Version) | `trb-repository`<br/>`trb-project-node-name`        |                                                                                                                           |
+
+## 🪆 Mono-repo Support
+
+This workflow also releases individual sub-packages inside a mono-repo. Each sub-package gets its own version, changelog and GitHub Release, while the overall flow stays identical to the monolith case.
+
+1. **Declare your sub-packages**
+
+   In your user-side entry workflow (`.github/workflows/prepare-release.yml`), declare every sub-package as a `name → workspace` mapping via the `packages` input, and add the sub-package tag pattern to the trigger:
+
+   ```yaml
+   on:
+     push:
+       tags:
+         - 'v*'    # Monolith release.
+         - '*/v*'  # Mono-repo sub-package release.
+   
+   
+   jobs:
+     call-prepare:
+       uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@develop
+       with:
+         base-branch: 'master'
+         packages: |
+           {
+             "core": "packages/core",
+             "cli": "packages/cli"
+           }
+       secrets:
+         ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+   ```
+
+   The **workspace** is the work directory that binds a sub-package's changes. Only commits that touch files inside it are considered for that sub-package's changelog.
+
+2. **Tag a sub-package release**
+
+   Use a tag in the form `<package>/v<semver>`:
+
+   ```bash
+   git tag core/v1.0.0
+   git push origin core/v1.0.0
+   ```
+
+How it differs from a monolith release:
+
+| Aspect                 | Monolith                          | Mono-repo Sub-package                                             |
+|------------------------|-----------------------------------|-------------------------------------------------------------------|
+| Trigger Tag            | `v1.0.0`                          | `core/v1.0.0`                                                     |
+| Changelog Commit Range | Latest commit → previous `v*` tag | Latest commit → previous `core/v*` tag                            |
+| Commit Filtering       | All conventional commits          | Only commits that modified files inside the sub-package workspace |
+| Changelog Location     | `CHANGELOG.md` (project root)     | `packages/core/CHANGELOG.md` (inside the workspace)               |
+| GitHub Release Title   | `1.0.0`                           | `core@v1.0.0`                                                     |

@@ -28,6 +28,12 @@ on:
         type: string
         default: 'github-actions[bot]@users.noreply.github.com'
 
+      packages:
+        description: 'JSON object mapping mono-repo sub-package name to its workspace directory.'
+        required: false
+        type: string
+        default: '{}'
+
     secrets:
       ACCESS_TOKEN:
         required: true
@@ -60,8 +66,47 @@ jobs:
         with:
           node-version: ${{ inputs.node-verions }}
 
-      - name: 🛠️ Set Environment Variables
-        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      - name: 🧭 Resolve Release Context
+        env:
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "TAG_NAME=${TAG_NAME}" >> "$GITHUB_ENV"
+
+          if [[ "$TAG_NAME" =~ ^(.+)/(v[0-9].*)$ ]]; then
+            # Mono-repo mode: tag format is <package>/v<semver>.
+            PACKAGE_NAME="${BASH_REMATCH[1]}"
+            VERSION_TAG="${BASH_REMATCH[2]}"
+
+            WORKSPACE=$(printf '%s' "$PACKAGES" | jq -r --arg name "$PACKAGE_NAME" '.[$name] // empty')
+          
+            if [ -z "$WORKSPACE" ]; then
+              echo "❌ Sub-package '${PACKAGE_NAME}' is not declared in the 'packages' input."
+              exit 1
+            fi
+          
+            # Normalize: strip any trailing slash.
+            WORKSPACE="${WORKSPACE%/}"
+
+            # Escape regex metacharacters in the package name for the tag pattern.
+            ESCAPED_NAME=$(printf '%s' "$PACKAGE_NAME" | sed -e 's/[.[\$()*+?{|^]/\\&/g')
+
+            echo "PACKAGE_NAME=${PACKAGE_NAME}" >> "$GITHUB_ENV"
+            echo "RELEASE_VERSION=${VERSION_TAG#v}" >> "$GITHUB_ENV"
+            echo "WORKSPACE=${WORKSPACE}" >> "$GITHUB_ENV"
+            echo "CHANGELOG_PATH=${WORKSPACE}/CHANGELOG.md" >> "$GITHUB_ENV"
+            echo "TAG_PATTERN=^${ESCAPED_NAME}/v[0-9].*" >> "$GITHUB_ENV"
+            echo "INCLUDE_PATH=${WORKSPACE}/**" >> "$GITHUB_ENV"
+          
+            echo "📦 Mono-repo release: package='${PACKAGE_NAME}', workspace='${WORKSPACE}', version='${VERSION_TAG#v}'."
+          else
+            # Monolith mode: tag format is v<semver>.
+            echo "RELEASE_VERSION=${TAG_NAME#v}" >> "$GITHUB_ENV"
+            echo "CHANGELOG_PATH=CHANGELOG.md" >> "$GITHUB_ENV"
+            echo "TAG_PATTERN=^v[0-9].*" >> "$GITHUB_ENV"
+            echo "INCLUDE_PATH=" >> "$GITHUB_ENV"
+            echo "📦 Monolith release: version='${TAG_NAME#v}'."
+          fi
 
       - name: 🪾 Create Release Branch
         run: |
@@ -74,7 +119,13 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
-          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --strip all --tag-pattern '^v[0-9].*' > pr_body_raw.md
+          EXTRA_ARGS=()
+          
+          if [ -n "${INCLUDE_PATH}" ]; then
+            EXTRA_ARGS+=(--include-path "${INCLUDE_PATH}")
+          fi
+          
+          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --strip all --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > pr_body_raw.md
 
       - name: 📂 Save PR Body to File
         run: |
@@ -85,17 +136,23 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
-          if [ -f "CHANGELOG.md" ]; then
+          EXTRA_ARGS=()
+          
+          if [ -n "${INCLUDE_PATH}" ]; then
+            EXTRA_ARGS+=(--include-path "${INCLUDE_PATH}")
+          fi
+          
+          if [ -f "${CHANGELOG_PATH}" ]; then
              # File exists: Prepend new changes (git-cliff intelligently handles headers).
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --prepend CHANGELOG.md --tag-pattern '^v[0-9].*'
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --prepend "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}"
           else
              # File missing: Create new with full history and header.
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output CHANGELOG.md --tag-pattern '^v[0-9].*'
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}"
           fi
 
       - name: 🔄 Sync Commit and Push
         run: |
-          git add CHANGELOG.md
+          git add "${CHANGELOG_PATH}"
           git commit -m "release: ${{ env.TAG_NAME }}"
           git push origin release/${{ env.TAG_NAME }}
 
