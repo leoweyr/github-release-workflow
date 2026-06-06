@@ -61,18 +61,21 @@ jobs:
         id: extract_tag
         run: |
           TITLE="${{ github.event.pull_request.title }}"
-          ORIGINAL_TAG_NAME=$(printf '%s' "$TITLE" | sed 's/release: //')
+          RELEASE_LABEL=$(printf '%s' "$TITLE" | sed 's/release: //')
 
-          if [[ "$ORIGINAL_TAG_NAME" =~ ^(.+)/(v[0-9].*)$ ]]; then
-            # Mono-repo mode: tag format is <package>/v<semver>.
+          if [[ "$RELEASE_LABEL" =~ ^(.+)@(v[0-9].*)$ ]]; then
+            # Mono-repo mode: label format is <package>@v<semver>.
             PACKAGE_NAME="${BASH_REMATCH[1]}"
             VERSION_TAG="${BASH_REMATCH[2]}"
             RELEASE_VERSION="${VERSION_TAG#v}"
             RELEASE_TITLE="${PACKAGE_NAME}@${VERSION_TAG}"
+            # Reconstruct the git tag name (<package>/v<semver>).
+            ORIGINAL_TAG_NAME="${PACKAGE_NAME}/${VERSION_TAG}"
           else
-            # Monolith mode: tag format is v<semver>.
-            RELEASE_VERSION="${ORIGINAL_TAG_NAME#v}"
+            # Monolith mode: label format is v<semver>.
+            RELEASE_VERSION="${RELEASE_LABEL#v}"
             RELEASE_TITLE="${RELEASE_VERSION}"
+            ORIGINAL_TAG_NAME="${RELEASE_LABEL}"
           fi
 
           TAG_COMMIT_HASH=$(git rev-list -n 1 "$ORIGINAL_TAG_NAME")

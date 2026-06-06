@@ -93,15 +93,17 @@ jobs:
 
             echo "PACKAGE_NAME=${PACKAGE_NAME}" >> "$GITHUB_ENV"
             echo "RELEASE_VERSION=${VERSION_TAG#v}" >> "$GITHUB_ENV"
+            echo "RELEASE_LABEL=${PACKAGE_NAME}@${VERSION_TAG}" >> "$GITHUB_ENV"
             echo "WORKSPACE=${WORKSPACE}" >> "$GITHUB_ENV"
             echo "CHANGELOG_PATH=${WORKSPACE}/CHANGELOG.md" >> "$GITHUB_ENV"
             echo "TAG_PATTERN=^${ESCAPED_NAME}/v[0-9].*" >> "$GITHUB_ENV"
             echo "INCLUDE_PATH=${WORKSPACE}/**" >> "$GITHUB_ENV"
-          
+
             echo "📦 Mono-repo release: package='${PACKAGE_NAME}', workspace='${WORKSPACE}', version='${VERSION_TAG#v}'."
           else
             # Monolith mode: tag format is v<semver>.
             echo "RELEASE_VERSION=${TAG_NAME#v}" >> "$GITHUB_ENV"
+            echo "RELEASE_LABEL=${TAG_NAME}" >> "$GITHUB_ENV"
             echo "CHANGELOG_PATH=CHANGELOG.md" >> "$GITHUB_ENV"
             echo "TAG_PATTERN=^v[0-9].*" >> "$GITHUB_ENV"
             echo "INCLUDE_PATH=" >> "$GITHUB_ENV"
@@ -153,7 +155,7 @@ jobs:
       - name: 🔄 Sync Commit and Push
         run: |
           git add "${CHANGELOG_PATH}"
-          git commit -m "release: ${{ env.TAG_NAME }}"
+          git commit -m "release: ${{ env.RELEASE_LABEL }}"
           git push origin release/${{ env.TAG_NAME }}
 
       - name: 🚀 Deploy Pull Request
@@ -161,7 +163,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         run: |
           gh pr create \
-            --title "release: ${{ env.TAG_NAME }}" \
+            --title "release: ${{ env.RELEASE_LABEL }}" \
             --body-file pr_body_cleaned.md \
             --base ${{ inputs.base-branch }} \
             --head release/${{ env.TAG_NAME }}

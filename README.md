@@ -98,10 +98,11 @@ This workflow also releases individual sub-packages inside a mono-repo. Each sub
 
 How it differs from a monolith release:
 
-| Aspect                 | Monolith                          | Mono-repo Sub-package                                             |
-|------------------------|-----------------------------------|-------------------------------------------------------------------|
-| Trigger Tag            | `v1.0.0`                          | `core/v1.0.0`                                                     |
-| Changelog Commit Range | Latest commit → previous `v*` tag | Latest commit → previous `core/v*` tag                            |
-| Commit Filtering       | All conventional commits          | Only commits that modified files inside the sub-package workspace |
-| Changelog Location     | `CHANGELOG.md` (project root)     | `packages/core/CHANGELOG.md` (inside the workspace)               |
-| GitHub Release Title   | `1.0.0`                           | `core@v1.0.0`                                                     |
+| Aspect                     | Monolith                          | Mono-repo Sub-package                                             |
+|----------------------------|-----------------------------------|-------------------------------------------------------------------|
+| Trigger Tag                | `v1.0.0`                          | `core/v1.0.0`                                                     |
+| Release Pull Request Title | `release: v1.0.0`                 | `release: core@v1.0.0`                                            |
+| Changelog Commit Range     | Latest commit → previous `v*` tag | Latest commit → previous `core/v*` tag                            |
+| Commit Filtering           | All conventional commits          | Only commits that modified files inside the sub-package workspace |
+| Changelog Location         | `CHANGELOG.md` (project root)     | `packages/core/CHANGELOG.md` (inside the workspace)               |
+| GitHub Release Title       | `1.0.0`                           | `core@v1.0.0`                                                     |
