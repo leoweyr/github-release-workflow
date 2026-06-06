@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.3.0](https://github.com/leoweyr/github-release-workflow/compare/v1.2.2...v1.3.0) (2026-06-06)
+### Features
+
+* support mono-repo sub-package release and changelog ([350a1e8](https://github.com/leoweyr/github-release-workflow/commit/350a1e8d5317d5ba861dd520f087877ede0f0b36)) [@leoweyr](https://github.com/leoweyr)
+* use `package@version` format for release label in mono-repo ([0cd1ca4](https://github.com/leoweyr/github-release-workflow/commit/0cd1ca4972eebbc3d9ac8585a17ef7e42bedbacc)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.2.2](https://github.com/leoweyr/github-release-workflow/compare/v1.2.1...v1.2.2) (2026-05-12)
 ### Bug Fixes
 
