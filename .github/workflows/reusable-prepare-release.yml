@@ -99,6 +99,14 @@ jobs:
             echo "TAG_PATTERN=^${ESCAPED_NAME}/v[0-9].*" >> "$GITHUB_ENV"
             echo "INCLUDE_PATH=${WORKSPACE}/**" >> "$GITHUB_ENV"
 
+            PREVIOUS_TAG=$(git describe --tags --abbrev=0 --match "${PACKAGE_NAME}/v*" "${TAG_NAME}^" 2>/dev/null || echo "")
+            
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "CHANGELOG_RANGE=${PREVIOUS_TAG}..${TAG_NAME}" >> "$GITHUB_ENV"
+            else
+              echo "CHANGELOG_RANGE=${TAG_NAME}" >> "$GITHUB_ENV"
+            fi
+
             echo "📦 Mono-repo release: package='${PACKAGE_NAME}', workspace='${WORKSPACE}', version='${VERSION_TAG#v}'."
           else
             # Monolith mode: tag format is v<semver>.
@@ -107,6 +115,15 @@ jobs:
             echo "CHANGELOG_PATH=CHANGELOG.md" >> "$GITHUB_ENV"
             echo "TAG_PATTERN=^v[0-9].*" >> "$GITHUB_ENV"
             echo "INCLUDE_PATH=" >> "$GITHUB_ENV"
+
+            PREVIOUS_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*" "${TAG_NAME}^" 2>/dev/null || echo "")
+            
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "CHANGELOG_RANGE=${PREVIOUS_TAG}..${TAG_NAME}" >> "$GITHUB_ENV"
+            else
+              echo "CHANGELOG_RANGE=${TAG_NAME}" >> "$GITHUB_ENV"
+            fi
+
             echo "📦 Monolith release: version='${TAG_NAME#v}'."
           fi
 
@@ -127,7 +144,7 @@ jobs:
             EXTRA_ARGS+=(--include-path "${INCLUDE_PATH}")
           fi
           
-          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --strip all --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > pr_body_raw.md
+          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${CHANGELOG_RANGE}" > pr_body_raw.md
 
       - name: 📂 Save PR Body to File
         run: |
@@ -145,11 +162,11 @@ jobs:
           fi
           
           if [ -f "${CHANGELOG_PATH}" ]; then
-             # File exists: Prepend new changes (git-cliff intelligently handles headers).
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --prepend "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}"
+             # File exists: Prepend new changes for the latest release only.
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --prepend "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${CHANGELOG_RANGE}"
           else
-             # File missing: Create new with full history and header.
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}"
+             # File missing: Create new with full history up to the current tag.
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${TAG_NAME}"
           fi
 
       - name: 🔄 Sync Commit and Push
