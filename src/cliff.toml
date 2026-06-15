@@ -6,10 +6,11 @@ All notable changes to this project will be documented in this file.\n
 
 body = """
 {% if version %}\
+    {% set semver = version | split(pat="/") | last | trim_start_matches(pat="v") %}\
     {% if previous.version %}\
-        # [{{ version | trim_start_matches(pat="v") }}](https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}/compare/{{ previous.version }}...{{ version }}) ({{ timestamp | date(format="%Y-%m-%d") }})
+        # [{{ semver }}](https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}/compare/{{ previous.version }}...{{ version }}) ({{ timestamp | date(format="%Y-%m-%d") }})
     {% else %}\
-        # [{{ version | trim_start_matches(pat="v") }}] ({{ timestamp | date(format="%Y-%m-%d") }})
+        # {{ semver }} ({{ timestamp | date(format="%Y-%m-%d") }})
     {% endif %}\
 {% else %}\
     # [unreleased]
