@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.3.0](https://github.com/leoweyr/github-release-workflow/compare/v1.2.2...v1.3.0) (2026-06-15)
+### Bug Fixes
+
+* **cliff:** remove brackets from first-version changelog heading ([9cb5b1e](https://github.com/leoweyr/github-release-workflow/commit/9cb5b1ec32960e3ba30065facd8c9d485f8c2ae1)) [@leoweyr](https://github.com/leoweyr)
+* **cliff:** resolve changelog version title via explicit git range ([39f1408](https://github.com/leoweyr/github-release-workflow/commit/39f1408983b05f41b0a92c985422660769ce52cb)) [@leoweyr](https://github.com/leoweyr)
+* add `--latest` flag to satisfy `--prepend` argument requirement ([f58313d](https://github.com/leoweyr/github-release-workflow/commit/f58313dcbf327a0c510c314d9d8fefc0fd4267f6)) [@leoweyr](https://github.com/leoweyr)
+* restore explicit range alongside `--latest` for prepend ([7ba20ec](https://github.com/leoweyr/github-release-workflow/commit/7ba20ec1b07846e8bf881f239f747e242d089dc4)) [@leoweyr](https://github.com/leoweyr)
+* replace `--prepend` with manual splice to enforce explicit range ([62a9dce](https://github.com/leoweyr/github-release-workflow/commit/62a9dce1c02436ca5d07db817b28890aa9c88bd7)) [@leoweyr](https://github.com/leoweyr)
+* scope changelog via `--current` to resolve `--include-path` ignoring range ([556a422](https://github.com/leoweyr/github-release-workflow/commit/556a422e02bc95100c5d6048138095a2706886d2)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Features
+
+* support mono-repo sub-package release and changelog ([350a1e8](https://github.com/leoweyr/github-release-workflow/commit/350a1e8d5317d5ba861dd520f087877ede0f0b36)) [@leoweyr](https://github.com/leoweyr)
+* use `package@version` format for release label in mono-repo ([0cd1ca4](https://github.com/leoweyr/github-release-workflow/commit/0cd1ca4972eebbc3d9ac8585a17ef7e42bedbacc)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.2.2](https://github.com/leoweyr/github-release-workflow/compare/v1.2.1...v1.2.2) (2026-05-12)
 ### Bug Fixes
 
