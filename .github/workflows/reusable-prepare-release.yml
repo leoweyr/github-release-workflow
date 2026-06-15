@@ -162,8 +162,19 @@ jobs:
           fi
           
           if [ -f "${CHANGELOG_PATH}" ]; then
-             # File exists: Prepend new changes for the latest release only.
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --latest --prepend "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${CHANGELOG_RANGE}"
+             # `--prepend` requires `-u/-l` which would override the explicit range, so we
+             # generate with `--strip` all and splice it in via shell instead.
+             TEMP_SECTION=$(mktemp)
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${CHANGELOG_RANGE}" > "${TEMP_SECTION}"
+
+             # Find the line just before the first version heading (# [x.y.z] or # x.y.z).
+             HEADER_END=$(awk '/^# \[|^# [0-9]/{print NR-1; exit}' "${CHANGELOG_PATH}")
+             TEMP_MERGED=$(mktemp)
+             head -n "${HEADER_END}" "${CHANGELOG_PATH}" > "${TEMP_MERGED}"
+             cat "${TEMP_SECTION}" >> "${TEMP_MERGED}"
+             tail -n +$((HEADER_END + 1)) "${CHANGELOG_PATH}" >> "${TEMP_MERGED}"
+             mv "${TEMP_MERGED}" "${CHANGELOG_PATH}"
+             rm -f "${TEMP_SECTION}"
           else
              # File missing: Create new with full history up to the current tag.
              npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${TAG_NAME}"
