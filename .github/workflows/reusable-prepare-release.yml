@@ -99,14 +99,6 @@ jobs:
             echo "TAG_PATTERN=^${ESCAPED_NAME}/v[0-9].*" >> "$GITHUB_ENV"
             echo "INCLUDE_PATH=${WORKSPACE}/**" >> "$GITHUB_ENV"
 
-            PREVIOUS_TAG=$(git describe --tags --abbrev=0 --match "${PACKAGE_NAME}/v*" "${TAG_NAME}^" 2>/dev/null || echo "")
-            
-            if [ -n "$PREVIOUS_TAG" ]; then
-              echo "CHANGELOG_RANGE=${PREVIOUS_TAG}..${TAG_NAME}" >> "$GITHUB_ENV"
-            else
-              echo "CHANGELOG_RANGE=${TAG_NAME}" >> "$GITHUB_ENV"
-            fi
-
             echo "📦 Mono-repo release: package='${PACKAGE_NAME}', workspace='${WORKSPACE}', version='${VERSION_TAG#v}'."
           else
             # Monolith mode: tag format is v<semver>.
@@ -115,14 +107,6 @@ jobs:
             echo "CHANGELOG_PATH=CHANGELOG.md" >> "$GITHUB_ENV"
             echo "TAG_PATTERN=^v[0-9].*" >> "$GITHUB_ENV"
             echo "INCLUDE_PATH=" >> "$GITHUB_ENV"
-
-            PREVIOUS_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*" "${TAG_NAME}^" 2>/dev/null || echo "")
-            
-            if [ -n "$PREVIOUS_TAG" ]; then
-              echo "CHANGELOG_RANGE=${PREVIOUS_TAG}..${TAG_NAME}" >> "$GITHUB_ENV"
-            else
-              echo "CHANGELOG_RANGE=${TAG_NAME}" >> "$GITHUB_ENV"
-            fi
 
             echo "📦 Monolith release: version='${TAG_NAME#v}'."
           fi
@@ -144,7 +128,7 @@ jobs:
             EXTRA_ARGS+=(--include-path "${INCLUDE_PATH}")
           fi
           
-          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${CHANGELOG_RANGE}" > pr_body_raw.md
+          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --current --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > pr_body_raw.md
 
       - name: 📂 Save PR Body to File
         run: |
@@ -162,10 +146,11 @@ jobs:
           fi
           
           if [ -f "${CHANGELOG_PATH}" ]; then
-             # `--prepend` requires `-u/-l` which would override the explicit range, so we
-             # generate with `--strip` all and splice it in via shell instead.
+             # `--include-path` makes git-cliff ignore an explicit commit range, so let
+             # `--current` derive the range from tags, then splice the section in by hand.
+             # (`--prepend` is unusable here: it requires `-u/-l` and inserts above the file header.)
              TEMP_SECTION=$(mktemp)
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${CHANGELOG_RANGE}" > "${TEMP_SECTION}"
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --current --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > "${TEMP_SECTION}"
 
              # Find the line just before the first version heading (# [x.y.z] or # x.y.z).
              HEADER_END=$(awk '/^# \[|^# [0-9]/{print NR-1; exit}' "${CHANGELOG_PATH}")
