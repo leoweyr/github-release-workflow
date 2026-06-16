@@ -128,7 +128,7 @@ jobs:
             EXTRA_ARGS+=(--include-path "${INCLUDE_PATH}")
           fi
           
-          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --current --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > pr_body_raw.md
+          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --latest --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > pr_body_raw.md
 
       - name: 📂 Save PR Body to File
         run: |
@@ -146,11 +146,14 @@ jobs:
           fi
           
           if [ -f "${CHANGELOG_PATH}" ]; then
-             # `--include-path` makes git-cliff ignore an explicit commit range, so let
-             # `--current` derive the range from tags, then splice the section in by hand.
-             # (`--prepend` is unusable here: it requires `-u/-l` and inserts above the file header.)
+             # `--latest` picks the newest tag matching `--tag-pattern` (so it stays scoped
+             # to this package) and emits exactly that one section, then splice it in by hand.
+             # (`--current` is unusable here: when one commit carries several package tags,
+             #  it resolves HEAD's tag via git's default ordering and fails the pattern check
+             #  with "No tag exists for the current commit". 
+             # `--prepend` is unusable too: it requires `-u/-l` and inserts above the file header.)
              TEMP_SECTION=$(mktemp)
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --current --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > "${TEMP_SECTION}"
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --latest --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > "${TEMP_SECTION}"
 
              # Find the line just before the first version heading (# [x.y.z] or # x.y.z).
              HEADER_END=$(awk '/^# \[|^# [0-9]/{print NR-1; exit}' "${CHANGELOG_PATH}")
