@@ -165,7 +165,10 @@ jobs:
              rm -f "${TEMP_SECTION}"
           else
              # File missing: Create new with full history up to the current tag.
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${TAG_NAME}"
+             # Resolve the tag to its commit SHA first.
+             # Newer git-cliff versions cannot parse a tag name directly as a commit OID.
+             TAG_COMMIT=$(git rev-parse "${TAG_NAME}^{}")
+             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${TAG_COMMIT}"
           fi
 
       - name: 🔄 Sync Commit and Push
