@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.3.1](https://github.com/leoweyr/github-release-workflow/compare/v1.3.0...v1.3.1) (2026-06-16)
+### Bug Fixes
+
+* replace `--current` with `--latest` to support multi-tag commits in mono-repo ([c87490a](https://github.com/leoweyr/github-release-workflow/commit/c87490a764cde8e27924b098ad8e6ed553ff595f)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.3.0](https://github.com/leoweyr/github-release-workflow/compare/v1.2.2...v1.3.0) (2026-06-15)
 ### Bug Fixes
 
