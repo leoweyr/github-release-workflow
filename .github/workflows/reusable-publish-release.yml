@@ -34,6 +34,12 @@ on:
         type: string
         default: ''
 
+      package-overrides:
+        description: 'JSON object mapping mono-repo sub-package to its specific inputs.'
+        required: false
+        type: string
+        default: '{}'
+
     secrets:
       ACCESS_TOKEN:
         required: true
@@ -73,10 +79,13 @@ jobs:
             ORIGINAL_TAG_NAME="${PACKAGE_NAME}/${VERSION_TAG}"
           else
             # Monolith mode: label format is v<semver>.
+            PACKAGE_NAME=""
             RELEASE_VERSION="${RELEASE_LABEL#v}"
             RELEASE_TITLE="${RELEASE_VERSION}"
             ORIGINAL_TAG_NAME="${RELEASE_LABEL}"
           fi
+
+          printf 'package_name=%s\n' "$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
 
           TAG_COMMIT_HASH=$(git rev-list -n 1 "$ORIGINAL_TAG_NAME")
 
@@ -116,6 +125,38 @@ jobs:
 
           printf 'enabled=true\n' >> "$GITHUB_OUTPUT"
 
+      - name: 📝 Resolve NPM Config
+        id: resolve_npm_config
+        if: steps.verify_npm_token.outputs.enabled == 'true'
+        env:
+          PACKAGE_NAME: ${{ steps.extract_tag.outputs.package_name }}
+          PACKAGE_OVERRIDES: ${{ inputs.package-overrides }}
+          DEFAULT_NODE_VERSION: ${{ inputs.npm-node-version }}
+          DEFAULT_PACKAGE_DIR: ${{ inputs.npm-package-dir }}
+          DEFAULT_DEPLOY_COMMAND: ${{ inputs.npm-deploy-command }}
+        run: |
+          NODE_VERSION="$DEFAULT_NODE_VERSION"
+          PACKAGE_DIR="$DEFAULT_PACKAGE_DIR"
+          DEPLOY_COMMAND="$DEFAULT_DEPLOY_COMMAND"
+
+          if [ -n "$PACKAGE_NAME" ]; then
+            OVERRIDE=$(printf '%s' "$PACKAGE_OVERRIDES" | jq -c --arg pkg "$PACKAGE_NAME" '.[$pkg] // empty')
+
+            if [ -n "$OVERRIDE" ]; then
+              OVERRIDE_NODE_VERSION=$(printf '%s' "$OVERRIDE" | jq -r '."npm-node-version" // empty')
+              OVERRIDE_PACKAGE_DIR=$(printf '%s' "$OVERRIDE" | jq -r '."npm-package-dir" // empty')
+              OVERRIDE_DEPLOY_COMMAND=$(printf '%s' "$OVERRIDE" | jq -r '."npm-deploy-command" // empty')
+
+              [ -n "$OVERRIDE_NODE_VERSION" ] && NODE_VERSION="$OVERRIDE_NODE_VERSION"
+              [ -n "$OVERRIDE_PACKAGE_DIR" ] && PACKAGE_DIR="$OVERRIDE_PACKAGE_DIR"
+              [ -n "$OVERRIDE_DEPLOY_COMMAND" ] && DEPLOY_COMMAND="$OVERRIDE_DEPLOY_COMMAND"
+            fi
+          fi
+
+          printf 'npm_node_version=%s\n' "$NODE_VERSION" >> "$GITHUB_OUTPUT"
+          printf 'npm_package_dir=%s\n' "$PACKAGE_DIR" >> "$GITHUB_OUTPUT"
+          printf 'npm_deploy_command=%s\n' "$DEPLOY_COMMAND" >> "$GITHUB_OUTPUT"
+
       - name: 🔍 Verify TRB Inputs
         id: verify_trb_inputs
         run: |
@@ -147,9 +188,9 @@ jobs:
         if: steps.verify_npm_token.outputs.enabled == 'true'
         uses: ./.release-workflow/.github/actions/npm-publish
         with:
-          node-version: ${{ inputs.npm-node-version }}
-          package-dir: ${{ inputs.npm-package-dir }}
-          deploy-command: ${{ inputs.npm-deploy-command }}
+          node-version: ${{ steps.resolve_npm_config.outputs.npm_node_version }}
+          package-dir: ${{ steps.resolve_npm_config.outputs.npm_package_dir }}
+          deploy-command: ${{ steps.resolve_npm_config.outputs.npm_deploy_command }}
           access-token: ${{ secrets.NPM_TOKEN }}
 
       - name: 🚀 Bump TRB Project Node Version

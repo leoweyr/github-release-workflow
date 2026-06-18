@@ -87,6 +87,27 @@ This workflow also releases individual sub-packages inside a mono-repo. Each sub
 
    The **workspace** is the work directory that binds a sub-package's changes. Only commits that touch files inside it are considered for that sub-package's changelog.
 
+   Likewise, sub-packages that need different publish settings are configured via the `package-overrides` input in your user-side entry workflow (`.github/workflows/publish-release.yml`), the same way as `packages`:
+
+   ```yaml
+   jobs:
+     call-publish:
+       uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@develop
+       with:
+         package-overrides: |
+           {
+             "core": {
+               "npm-package-dir": "packages/core"
+             },
+             "cli": {
+               "npm-package-dir": "packages/cli"
+             }
+           }
+       secrets:
+         ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+   ```
+
 2. **Tag a sub-package release**
 
    Use a tag in the form `<package>/v<semver>`:
