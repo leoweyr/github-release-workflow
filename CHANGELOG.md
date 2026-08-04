@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [1.4.1](https://github.com/leoweyr/github-release-workflow/compare/v1.4.0...v1.4.1) (2026-06-18)
+### Bug Fixes
+
+* resolve tag to commit SHA before passing to `git-cliff` ([50f660b](https://github.com/leoweyr/github-release-workflow/commit/50f660b08db24026169a8cfa2b5546ca8b8fdfc6)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.4.0](https://github.com/leoweyr/github-release-workflow/compare/v1.3.1...v1.4.0) (2026-06-17)
 ### Features
 
