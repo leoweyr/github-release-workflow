@@ -1,5 +1,5 @@
-import type { CommandExecutionResult } from '../commands/CommandExecutionResult';
-import type { CommandRunner } from '../commands/CommandRunner';
+import type { CommandExecutionResult } from '../command/CommandExecutionResult';
+import type { CommandRunner } from '../command/CommandRunner';
 import type { ChangelogGenerationRequest } from './ChangelogGenerationRequest';
 import type { GitCliffClient } from './GitCliffClient';
 

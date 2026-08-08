@@ -1,7 +1,7 @@
 import type { NpmPublishSettings } from './NpmPublishSettings';
 import { InvalidNpmPublishConfigurationError } from './exceptions/InvalidNpmPublishConfigurationError';
 import type { NpmPackageOverride } from './NpmPackageOverride';
-import { PackageName } from '../release/PackageName';
+import { PackageName } from '../../release/PackageName';
 
 
 export class NpmPublishConfiguration {
@@ -10,7 +10,7 @@ export class NpmPublishConfiguration {
         NpmPublishConfiguration._assertNotEmpty('packageDirectory', settings.packageDirectory);
         NpmPublishConfiguration._assertNotEmpty('deployCommand', settings.deployCommand);
 
-        return Object.freeze({ ...settings });
+        return { ...settings };
     }
 
     private static _assertNotEmpty(propertyName: keyof NpmPublishSettings, value: string): void {
@@ -44,7 +44,7 @@ export class NpmPublishConfiguration {
             const packageOverride: NpmPackageOverride = packageOverrideEntry[1];
             const packageName: PackageName = PackageName.parse(packageNameValue);
 
-            normalizedOverrides.set(packageName.value, Object.freeze({ ...packageOverride }));
+            normalizedOverrides.set(packageName.value, { ...packageOverride });
         });
 
         this._packageOverrides = normalizedOverrides;
@@ -52,13 +52,13 @@ export class NpmPublishConfiguration {
 
     public resolve(packageName: PackageName | null): NpmPublishSettings {
         if (packageName === null) {
-            return this._defaults;
+            return { ...this._defaults };
         }
 
         const packageOverride: NpmPackageOverride | undefined = this._packageOverrides.get(packageName.value);
 
         if (packageOverride === undefined) {
-            return this._defaults;
+            return { ...this._defaults };
         }
 
         const resolvedSettings: NpmPublishSettings = {
@@ -73,6 +73,6 @@ export class NpmPublishConfiguration {
             ),
         };
 
-        return Object.freeze(resolvedSettings);
+        return resolvedSettings;
     }
 }

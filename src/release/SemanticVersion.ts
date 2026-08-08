@@ -16,12 +16,10 @@ export class SemanticVersion {
 
     private static _readOptionalIdentifiers(versionMatch: RegExpExecArray, index: number): readonly string[] {
         const value: string | undefined = versionMatch[index];
+        const identifiers: string[] = value === undefined ? [] : value.split('.');
 
-        if (value === undefined) {
-            return Object.freeze([]);
-        }
-
-        return Object.freeze(value.split('.'));
+        // The value object retains this array and exposes the same reference through its getters.
+        return Object.freeze(identifiers);
     }
 
     public static parse(version: string): SemanticVersion {

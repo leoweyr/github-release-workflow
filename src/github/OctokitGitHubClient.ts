@@ -30,13 +30,13 @@ export class OctokitGitHubClient implements GitHubClient {
     }
 
     private static _toReleaseReference(release: ReleaseData): GitHubReleaseReference {
-        return Object.freeze({
+        return {
             identifier: release.id,
             url: release.html_url,
             tagName: release.tag_name,
             draft: release.draft,
             prerelease: release.prerelease,
-        });
+        };
     }
 
     private readonly _octokit: OctokitApi;
@@ -55,10 +55,10 @@ export class OctokitGitHubClient implements GitHubClient {
             head: request.headBranch,
         });
 
-        return Object.freeze({
+        return {
             number: response.data.number,
             url: response.data.html_url,
-        });
+        };
     }
 
     public async findOpenPullRequest(request: PullRequestSearchRequest): Promise<PullRequestReference | null> {
@@ -77,10 +77,10 @@ export class OctokitGitHubClient implements GitHubClient {
             return null;
         }
 
-        return Object.freeze({
+        return {
             number: pullRequest.number,
             url: pullRequest.html_url,
-        });
+        };
     }
 
     public async createRelease(request: GitHubReleaseCreationRequest): Promise<GitHubReleaseReference> {

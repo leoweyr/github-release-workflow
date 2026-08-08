@@ -1,5 +1,5 @@
-import type { CommandExecutionResult } from '../commands/CommandExecutionResult';
-import type { CommandRunner } from '../commands/CommandRunner';
+import type { CommandExecutionResult } from '../command/CommandExecutionResult';
+import type { CommandRunner } from '../command/CommandRunner';
 import type { GitAuthor } from './GitAuthor';
 import type { GitRepository } from './GitRepository';
 import { InvalidGitOutputError } from './exceptions/InvalidGitOutputError';

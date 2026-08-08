@@ -61,11 +61,11 @@ export class ActionCommandRunner implements CommandRunner {
         const executionOptions: ExecOptions = ActionCommandRunner._createExecutionOptions(options);
         const executionOutput: ExecOutput = await getExecOutput(command, [...commandArguments], executionOptions);
 
-        const result: CommandExecutionResult = Object.freeze({
+        const result: CommandExecutionResult = {
             exitCode: executionOutput.exitCode,
             standardOutput: executionOutput.stdout,
             standardError: executionOutput.stderr,
-        });
+        };
 
         const acceptedExitCodes: readonly number[] = options.acceptedExitCodes ?? [
             ActionCommandRunner._successfulExitCode,
