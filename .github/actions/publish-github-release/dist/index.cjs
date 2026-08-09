@@ -35163,12 +35163,9 @@ class PublishGitHubReleaseAction {
     return ReleaseTag.fromReleaseLabel(releaseLabel);
   }
   static _setOutputs(releaseTag, githubPublication) {
-    setOutput("tag-name", releaseTag.tagName);
     setOutput("release-version", releaseTag.version.value);
-    setOutput("release-title", releaseTag.releaseTitle);
     setOutput("release-at", githubPublication.releaseAt);
     setOutput("package-name", releaseTag.packageName?.value ?? "");
-    setOutput("github-release-url", githubPublication.reference.url);
   }
   static _toError(error) {
     if (error instanceof Error) {

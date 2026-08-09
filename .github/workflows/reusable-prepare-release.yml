@@ -70,7 +70,6 @@ jobs:
           node-version: ${{ inputs.node-verions }}
 
       - name: 🧰 Prepare Release
-        id: prepare_release
         uses: ./.release-workflow/.github/actions/prepare-release
         with:
           access-token: ${{ secrets.ACCESS_TOKEN }}

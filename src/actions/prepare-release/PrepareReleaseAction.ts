@@ -52,16 +52,6 @@ export class PrepareReleaseAction {
         };
     }
 
-    private static _setOutputs(result: PrepareReleaseResult): void {
-        core.setOutput('tag-name', result.tagName);
-        core.setOutput('release-version', result.releaseVersion);
-        core.setOutput('release-label', result.releaseLabel);
-        core.setOutput('changelog-path', result.changelogPath);
-        core.setOutput('release-branch', result.releaseBranch);
-        core.setOutput('pull-request-number', result.pullRequest.number);
-        core.setOutput('pull-request-url', result.pullRequest.url);
-    }
-
     private static _toError(error: unknown): Error {
         if (error instanceof Error) {
             return error;
@@ -111,7 +101,6 @@ export class PrepareReleaseAction {
 
             const result: PrepareReleaseResult = await prepareRelease.execute(request);
 
-            PrepareReleaseAction._setOutputs(result);
             core.info(`Created release pull request '${result.pullRequest.url}'.`);
         } catch (error: unknown) {
             core.setFailed(PrepareReleaseAction._toError(error));

@@ -27,18 +27,12 @@ inputs:
 
 
 outputs:
-  tag-name:
-    description: 'Original Git tag used for the release.'
   release-version:
     description: 'Release version without the `v` prefix.'
-  release-title:
-    description: 'GitHub Release title.'
   release-at:
     description: 'UTC timestamp of the tagged commit.'
   package-name:
     description: 'Monorepo package name, or an empty string for monolith repository.'
-  github-release-url:
-    description: 'Created GitHub Release URL.'
 
 
 runs:

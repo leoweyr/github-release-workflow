@@ -41,23 +41,6 @@ inputs:
     default: '.'
 
 
-outputs:
-  tag-name:
-    description: 'Original Git tag used to prepare the release.'
-  release-version:
-    description: 'Release version without the `v` prefix.'
-  release-label:
-    description: 'Release label used in the commit and pull request title.'
-  changelog-path:
-    description: 'Repository-relative changelog path.'
-  release-branch:
-    description: 'Created release branch name.'
-  pull-request-number:
-    description: 'Created pull request number.'
-  pull-request-url:
-    description: 'Created pull request URL.'
-
-
 runs:
   using: 'node24'
   main: 'dist/index.cjs'

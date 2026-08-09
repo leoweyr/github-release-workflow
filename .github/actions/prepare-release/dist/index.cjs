@@ -1,7 +1,7 @@
 'use strict';
 
 var os = require('os');
-var crypto = require('crypto');
+require('crypto');
 var fs = require('fs');
 var path = require('path');
 var http = require('http');
@@ -55,7 +55,6 @@ function _interopNamespaceDefault(e) {
 }
 
 var os__namespace = /*#__PURE__*/_interopNamespaceDefault(os);
-var crypto__namespace = /*#__PURE__*/_interopNamespaceDefault(crypto);
 var fs__namespace = /*#__PURE__*/_interopNamespaceDefault(fs);
 var path__namespace = /*#__PURE__*/_interopNamespaceDefault(path);
 var events__namespace = /*#__PURE__*/_interopNamespaceDefault(events$1);
@@ -180,36 +179,6 @@ function escapeProperty(s) {
         .replace(/\n/g, '%0A')
         .replace(/:/g, '%3A')
         .replace(/,/g, '%2C');
-}
-
-// For internal use, subject to change.
-// We use any as a valid input type
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function issueFileCommand(command, message) {
-    const filePath = process.env[`GITHUB_${command}`];
-    if (!filePath) {
-        throw new Error(`Unable to find environment variable for file command ${command}`);
-    }
-    if (!fs__namespace.existsSync(filePath)) {
-        throw new Error(`Missing file at path: ${filePath}`);
-    }
-    fs__namespace.appendFileSync(filePath, `${toCommandValue(message)}${os__namespace.EOL}`, {
-        encoding: 'utf8'
-    });
-}
-function prepareKeyValueMessage(key, value) {
-    const delimiter = `ghadelimiter_${crypto__namespace.randomUUID()}`;
-    const convertedValue = toCommandValue(value);
-    // These should realistically never happen, but just in case someone finds a
-    // way to exploit uuid generation let's not allow keys or values that contain
-    // the delimiter.
-    if (key.includes(delimiter)) {
-        throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
-    }
-    if (convertedValue.includes(delimiter)) {
-        throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
-    }
-    return `${key}<<${delimiter}${os__namespace.EOL}${convertedValue}${os__namespace.EOL}${delimiter}`;
 }
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -29289,21 +29258,6 @@ function getInput(name, options) {
     }
     return val.trim();
 }
-/**
- * Sets the value of an output.
- *
- * @param     name     name of the output to set
- * @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setOutput(name, value) {
-    const filePath = process.env['GITHUB_OUTPUT'] || '';
-    if (filePath) {
-        return issueFileCommand('OUTPUT', prepareKeyValueMessage(name, value));
-    }
-    process.stdout.write(os__namespace.EOL);
-    issueCommand('set-output', { name }, toCommandValue(value));
-}
 //-----------------------------------------------------------------------
 // Results
 //-----------------------------------------------------------------------
@@ -35418,15 +35372,6 @@ class PrepareReleaseAction {
       email: getInput("commit-user-email", { required: true })
     };
   }
-  static _setOutputs(result) {
-    setOutput("tag-name", result.tagName);
-    setOutput("release-version", result.releaseVersion);
-    setOutput("release-label", result.releaseLabel);
-    setOutput("changelog-path", result.changelogPath);
-    setOutput("release-branch", result.releaseBranch);
-    setOutput("pull-request-number", result.pullRequest.number);
-    setOutput("pull-request-url", result.pullRequest.url);
-  }
   static _toError(error) {
     if (error instanceof Error) {
       return error;
@@ -35466,7 +35411,6 @@ class PrepareReleaseAction {
         workingDirectory
       );
       const result = await prepareRelease.execute(request);
-      PrepareReleaseAction._setOutputs(result);
       info(`Created release pull request '${result.pullRequest.url}'.`);
     } catch (error) {
       setFailed(PrepareReleaseAction._toError(error));

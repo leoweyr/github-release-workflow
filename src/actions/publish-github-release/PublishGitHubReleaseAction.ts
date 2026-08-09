@@ -29,12 +29,9 @@ export class PublishGitHubReleaseAction {
         releaseTag: ReleaseTag,
         githubPublication: GitHubReleasePublication,
     ): void {
-        core.setOutput('tag-name', releaseTag.tagName);
         core.setOutput('release-version', releaseTag.version.value);
-        core.setOutput('release-title', releaseTag.releaseTitle);
         core.setOutput('release-at', githubPublication.releaseAt);
         core.setOutput('package-name', releaseTag.packageName?.value ?? '');
-        core.setOutput('github-release-url', githubPublication.reference.url);
     }
 
     private static _toError(error: unknown): Error {
