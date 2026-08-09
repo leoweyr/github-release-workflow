@@ -5,6 +5,23 @@ import esbuild from 'rollup-plugin-esbuild';
 
 const actionBundleConfigurations = [
     {
+        input: 'src/actions/prepare-release/index.ts',
+        plugins: [
+            nodeResolve({
+                preferBuiltins: true,
+            }),
+            commonjs(),
+            esbuild({
+                target: 'node24',
+            }),
+        ],
+        output: {
+            file: '.github/actions/prepare-release/dist/index.cjs',
+            format: 'cjs',
+            exports: 'auto',
+        },
+    },
+    {
         input: 'src/actions/publish-github-release/index.ts',
         plugins: [
             nodeResolve({

@@ -5,6 +5,7 @@ export interface ChangelogGenerationRequest {
     readonly workingDirectory: string;
     readonly configurationPath: string;
     readonly tagPattern: string;
+    readonly environment?: Readonly<Record<string, string>>;
     readonly includePath?: string;
     readonly ignoredTagPattern?: string;
     readonly revision?: string;

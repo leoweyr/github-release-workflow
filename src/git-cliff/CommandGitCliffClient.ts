@@ -46,6 +46,7 @@ export class CommandGitCliffClient implements GitCliffClient {
 
         const result: CommandExecutionResult = await this._commandRunner.execute('npx', commandArguments, {
             workingDirectory: request.workingDirectory,
+            ...(request.environment === undefined ? {} : { environment: request.environment }),
         });
 
         return result.standardOutput;
