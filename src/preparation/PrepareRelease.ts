@@ -10,11 +10,14 @@ import { ReleaseContext } from '../release/ReleaseContext';
 import { ReleaseTag } from '../release/ReleaseTag';
 import type { PrepareReleaseRequest } from './PrepareReleaseRequest';
 import type { PrepareReleaseResult } from './PrepareReleaseResult';
+import { ReleasePreparationPolicy } from './ReleasePreparationPolicy';
 import { MissingChangelogVersionHeadingError } from './exceptions/MissingChangelogVersionHeadingError';
+import { ReleaseTagOutsideBranchHistoryError } from './exceptions/ReleaseTagOutsideBranchHistoryError';
 
 
 export class PrepareRelease {
     private static readonly _firstVersionHeadingPattern: RegExp = /^# \[|^# [0-9]/mu;
+    private static readonly _remoteName: string = 'origin';
 
     private static _removeSectionHeading(changelogSection: string): string {
         const firstLineEndingIndex: number = changelogSection.indexOf('\n');
@@ -64,15 +67,60 @@ export class PrepareRelease {
         this._workingDirectory = workingDirectory;
     }
 
+    private async _createPreparationBranch(
+        releaseContext: ReleaseContext,
+        preparationPolicy: ReleasePreparationPolicy,
+    ): Promise<void> {
+        const tagRevision: string = `refs/tags/${releaseContext.tagName}`;
+        const persistentBranchExists: boolean = await this._gitRepository.remoteBranchExists(
+            PrepareRelease._remoteName,
+            preparationPolicy.persistentReleaseBranch,
+        );
+
+        if (persistentBranchExists) {
+            await this._gitRepository.fetchRemoteBranch(
+                PrepareRelease._remoteName,
+                preparationPolicy.persistentReleaseBranch,
+            );
+
+            const persistentBranchRevision: string = `${PrepareRelease._remoteName}/${preparationPolicy.persistentReleaseBranch}`;
+            const tagDescendsFromPersistentBranch: boolean = await this._gitRepository.isAncestor(
+                persistentBranchRevision,
+                tagRevision,
+            );
+
+            if (!tagDescendsFromPersistentBranch) {
+                throw new ReleaseTagOutsideBranchHistoryError(
+                    releaseContext.tagName,
+                    preparationPolicy.persistentReleaseBranch,
+                );
+            }
+        } else if (preparationPolicy.isPrerelease) {
+            const tagCommitHash: string = await this._gitRepository.resolveCommit(tagRevision);
+
+            await this._gitRepository.pushRevisionAsBranch(
+                PrepareRelease._remoteName,
+                tagCommitHash,
+                preparationPolicy.persistentReleaseBranch,
+            );
+        }
+
+        await this._gitRepository.createBranch(preparationPolicy.workingBranch, tagRevision);
+    }
+
     private async _generateLatestChangelogSection(
         request: PrepareReleaseRequest,
         releaseContext: ReleaseContext,
+        preparationPolicy: ReleasePreparationPolicy,
     ): Promise<string> {
         return this._gitCliffClient.generate({
             workingDirectory: this._workingDirectory,
             configurationPath: request.changelogConfigurationPath,
             tagPattern: releaseContext.tagPattern,
             ...(releaseContext.includePath === null ? {} : { includePath: releaseContext.includePath }),
+            ...(preparationPolicy.ignoredTagPattern === null
+                ? {}
+                : { ignoredTagPattern: preparationPolicy.ignoredTagPattern }),
             latest: true,
             verbose: true,
             strip: ChangelogStrip.ALL,
@@ -83,6 +131,7 @@ export class PrepareRelease {
     private async _updateChangelog(
         request: PrepareReleaseRequest,
         releaseContext: ReleaseContext,
+        preparationPolicy: ReleasePreparationPolicy,
         changelogSection: string,
     ): Promise<void> {
         const changelogFilePath: string = resolve(this._workingDirectory, releaseContext.changelogPath);
@@ -109,6 +158,9 @@ export class PrepareRelease {
             configurationPath: request.changelogConfigurationPath,
             tagPattern: releaseContext.tagPattern,
             ...(releaseContext.includePath === null ? {} : { includePath: releaseContext.includePath }),
+            ...(preparationPolicy.ignoredTagPattern === null
+                ? {}
+                : { ignoredTagPattern: preparationPolicy.ignoredTagPattern }),
             revision: tagCommitHash,
             latest: false,
             verbose: true,
@@ -120,27 +172,32 @@ export class PrepareRelease {
     }
 
     public async execute(request: PrepareReleaseRequest): Promise<PrepareReleaseResult> {
-        const releaseContext: ReleaseContext = ReleaseContext.resolve(
-            ReleaseTag.fromTagName(request.tagName),
-            request.packageWorkspaces,
-        );
+        const releaseTag: ReleaseTag = ReleaseTag.fromTagName(request.tagName);
+        const releaseContext: ReleaseContext = ReleaseContext.resolve(releaseTag, request.packageWorkspaces);
+        const preparationPolicy: ReleasePreparationPolicy = new ReleasePreparationPolicy(releaseTag);
 
         await this._gitRepository.configureAuthor(request.author);
-        await this._gitRepository.createBranch(releaseContext.releaseBranch);
+        await this._createPreparationBranch(releaseContext, preparationPolicy);
 
-        const changelogSection: string = await this._generateLatestChangelogSection(request, releaseContext);
+        const pullRequestBaseBranch: string = preparationPolicy.resolvePullRequestBaseBranch(request.baseBranch);
 
-        await this._updateChangelog(request, releaseContext, changelogSection);
+        const changelogSection: string = await this._generateLatestChangelogSection(
+            request,
+            releaseContext,
+            preparationPolicy,
+        );
+
+        await this._updateChangelog(request, releaseContext, preparationPolicy, changelogSection);
         await this._gitRepository.stagePaths([releaseContext.changelogPath]);
-        await this._gitRepository.commit(`release: ${releaseContext.releaseLabel}`);
-        await this._gitRepository.pushBranch('origin', releaseContext.releaseBranch);
+        await this._gitRepository.commit(preparationPolicy.pullRequestTitle);
+        await this._gitRepository.pushBranch(PrepareRelease._remoteName, preparationPolicy.workingBranch);
 
         const pullRequest: PullRequestReference = await this._gitHubClient.createPullRequest({
             repository: request.repository,
-            title: `release: ${releaseContext.releaseLabel}`,
+            title: preparationPolicy.pullRequestTitle,
             body: PrepareRelease._removeSectionHeading(changelogSection),
-            baseBranch: request.baseBranch,
-            headBranch: releaseContext.releaseBranch,
+            baseBranch: pullRequestBaseBranch,
+            headBranch: preparationPolicy.workingBranch,
         });
 
         return {
@@ -148,7 +205,8 @@ export class PrepareRelease {
             releaseVersion: releaseContext.releaseVersion,
             releaseLabel: releaseContext.releaseLabel,
             changelogPath: releaseContext.changelogPath,
-            releaseBranch: releaseContext.releaseBranch,
+            releaseBranch: preparationPolicy.workingBranch,
+            pullRequestBaseBranch,
             pullRequest,
         };
     }

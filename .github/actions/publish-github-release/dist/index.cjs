@@ -34784,6 +34784,9 @@ class CommandGitRepository {
   async pushBranch(remoteName, branchName) {
     await this._execute(["push", remoteName, branchName]);
   }
+  async pushRevisionAsBranch(remoteName, sourceRevision, branchName) {
+    await this._execute(["push", remoteName, `${sourceRevision}:refs/heads/${branchName}`]);
+  }
   async resolveCommit(revision) {
     const result = await this._execute([
       "rev-parse",
@@ -34804,6 +34807,14 @@ class CommandGitRepository {
       throw new InvalidGitOutputError("read commit date", dateValue);
     }
     return commitDate;
+  }
+  async fetchRemoteBranch(remoteName, branchName) {
+    await this._execute([
+      "fetch",
+      "--no-tags",
+      remoteName,
+      `refs/heads/${branchName}:refs/remotes/${remoteName}/${branchName}`
+    ]);
   }
   async remoteBranchExists(remoteName, branchName) {
     const result = await this._execute(
@@ -35041,6 +35052,12 @@ class SemanticVersion {
   get versionTag() {
     return `v${this._value}`;
   }
+  get stableValue() {
+    return `${this._major}.${this._minor}.${this._patch}`;
+  }
+  get stableVersionTag() {
+    return `v${this.stableValue}`;
+  }
   get major() {
     return this._major;
   }
@@ -35118,6 +35135,12 @@ class ReleaseTag {
     }
     return `${this._packageName.value}@${this._version.versionTag}`;
   }
+  get targetTagName() {
+    if (this._packageName === null) {
+      return this._version.stableVersionTag;
+    }
+    return `${this._packageName.value}/${this._version.stableVersionTag}`;
+  }
   get releaseTitle() {
     if (this._packageName === null) {
       return this._version.value;
@@ -35129,6 +35152,12 @@ class ReleaseTag {
       return "^v[0-9].*";
     }
     return `^${this._packageName.regularExpressionValue}/v[0-9].*`;
+  }
+  get prereleaseTagPattern() {
+    if (this._packageName === null) {
+      return "^v[0-9]+\\.[0-9]+\\.[0-9]+-.*";
+    }
+    return `^${this._packageName.regularExpressionValue}/v[0-9]+\\.[0-9]+\\.[0-9]+-.*`;
   }
   get isMonorepoRelease() {
     return this._packageName !== null;

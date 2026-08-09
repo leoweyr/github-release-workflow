@@ -34798,6 +34798,9 @@ class CommandGitRepository {
   async pushBranch(remoteName, branchName) {
     await this._execute(["push", remoteName, branchName]);
   }
+  async pushRevisionAsBranch(remoteName, sourceRevision, branchName) {
+    await this._execute(["push", remoteName, `${sourceRevision}:refs/heads/${branchName}`]);
+  }
   async resolveCommit(revision) {
     const result = await this._execute([
       "rev-parse",
@@ -34818,6 +34821,14 @@ class CommandGitRepository {
       throw new InvalidGitOutputError("read commit date", dateValue);
     }
     return commitDate;
+  }
+  async fetchRemoteBranch(remoteName, branchName) {
+    await this._execute([
+      "fetch",
+      "--no-tags",
+      remoteName,
+      `refs/heads/${branchName}:refs/remotes/${remoteName}/${branchName}`
+    ]);
   }
   async remoteBranchExists(remoteName, branchName) {
     const result = await this._execute(
@@ -35079,6 +35090,12 @@ class SemanticVersion {
   get versionTag() {
     return `v${this._value}`;
   }
+  get stableValue() {
+    return `${this._major}.${this._minor}.${this._patch}`;
+  }
+  get stableVersionTag() {
+    return `v${this.stableValue}`;
+  }
   get major() {
     return this._major;
   }
@@ -35156,6 +35173,12 @@ class ReleaseTag {
     }
     return `${this._packageName.value}@${this._version.versionTag}`;
   }
+  get targetTagName() {
+    if (this._packageName === null) {
+      return this._version.stableVersionTag;
+    }
+    return `${this._packageName.value}/${this._version.stableVersionTag}`;
+  }
   get releaseTitle() {
     if (this._packageName === null) {
       return this._version.value;
@@ -35167,6 +35190,12 @@ class ReleaseTag {
       return "^v[0-9].*";
     }
     return `^${this._packageName.regularExpressionValue}/v[0-9].*`;
+  }
+  get prereleaseTagPattern() {
+    if (this._packageName === null) {
+      return "^v[0-9]+\\.[0-9]+\\.[0-9]+-.*";
+    }
+    return `^${this._packageName.regularExpressionValue}/v[0-9]+\\.[0-9]+\\.[0-9]+-.*`;
   }
   get isMonorepoRelease() {
     return this._packageName !== null;
@@ -35224,8 +35253,40 @@ class ReleaseContext {
   get tagPattern() {
     return this._releaseTag.tagPattern;
   }
-  get releaseBranch() {
-    return `release/${this._releaseTag.tagName}`;
+}
+
+class ReleasePreparationPolicy {
+  _releaseTag;
+  constructor(releaseTag) {
+    this._releaseTag = releaseTag;
+  }
+  get isPrerelease() {
+    return this._releaseTag.version.isPrerelease;
+  }
+  get persistentReleaseBranch() {
+    return `release/${this._releaseTag.targetTagName}`;
+  }
+  get workingBranch() {
+    if (this.isPrerelease) {
+      return `automation/prerelease/${this._releaseTag.tagName}`;
+    }
+    return this.persistentReleaseBranch;
+  }
+  get pullRequestTitle() {
+    const titlePrefix = this.isPrerelease ? "prerelease" : "release";
+    return `${titlePrefix}: ${this._releaseTag.releaseLabel}`;
+  }
+  get ignoredTagPattern() {
+    if (this.isPrerelease) {
+      return null;
+    }
+    return this._releaseTag.prereleaseTagPattern;
+  }
+  resolvePullRequestBaseBranch(stableBaseBranch) {
+    if (this.isPrerelease) {
+      return this.persistentReleaseBranch;
+    }
+    return stableBaseBranch;
   }
 }
 
@@ -35236,8 +35297,16 @@ class MissingChangelogVersionHeadingError extends Error {
   }
 }
 
+class ReleaseTagOutsideBranchHistoryError extends Error {
+  constructor(tagName, branchName) {
+    super(`Release tag '${tagName}' is not descended from release branch '${branchName}'.`);
+    this.name = "ReleaseTagOutsideBranchHistoryError";
+  }
+}
+
 class PrepareRelease {
   static _firstVersionHeadingPattern = /^# \[|^# [0-9]/mu;
+  static _remoteName = "origin";
   static _removeSectionHeading(changelogSection) {
     const firstLineEndingIndex = changelogSection.indexOf("\n");
     if (firstLineEndingIndex === -1) {
@@ -35268,19 +35337,52 @@ class PrepareRelease {
     this._gitRepository = gitRepository;
     this._workingDirectory = workingDirectory;
   }
-  async _generateLatestChangelogSection(request, releaseContext) {
+  async _createPreparationBranch(releaseContext, preparationPolicy) {
+    const tagRevision = `refs/tags/${releaseContext.tagName}`;
+    const persistentBranchExists = await this._gitRepository.remoteBranchExists(
+      PrepareRelease._remoteName,
+      preparationPolicy.persistentReleaseBranch
+    );
+    if (persistentBranchExists) {
+      await this._gitRepository.fetchRemoteBranch(
+        PrepareRelease._remoteName,
+        preparationPolicy.persistentReleaseBranch
+      );
+      const persistentBranchRevision = `${PrepareRelease._remoteName}/${preparationPolicy.persistentReleaseBranch}`;
+      const tagDescendsFromPersistentBranch = await this._gitRepository.isAncestor(
+        persistentBranchRevision,
+        tagRevision
+      );
+      if (!tagDescendsFromPersistentBranch) {
+        throw new ReleaseTagOutsideBranchHistoryError(
+          releaseContext.tagName,
+          preparationPolicy.persistentReleaseBranch
+        );
+      }
+    } else if (preparationPolicy.isPrerelease) {
+      const tagCommitHash = await this._gitRepository.resolveCommit(tagRevision);
+      await this._gitRepository.pushRevisionAsBranch(
+        PrepareRelease._remoteName,
+        tagCommitHash,
+        preparationPolicy.persistentReleaseBranch
+      );
+    }
+    await this._gitRepository.createBranch(preparationPolicy.workingBranch, tagRevision);
+  }
+  async _generateLatestChangelogSection(request, releaseContext, preparationPolicy) {
     return this._gitCliffClient.generate({
       workingDirectory: this._workingDirectory,
       configurationPath: request.changelogConfigurationPath,
       tagPattern: releaseContext.tagPattern,
       ...releaseContext.includePath === null ? {} : { includePath: releaseContext.includePath },
+      ...preparationPolicy.ignoredTagPattern === null ? {} : { ignoredTagPattern: preparationPolicy.ignoredTagPattern },
       latest: true,
       verbose: true,
       strip: ChangelogStrip.ALL,
       environment: request.gitCliffEnvironment
     });
   }
-  async _updateChangelog(request, releaseContext, changelogSection) {
+  async _updateChangelog(request, releaseContext, preparationPolicy, changelogSection) {
     const changelogFilePath = node_path.resolve(this._workingDirectory, releaseContext.changelogPath);
     if (await this._fileSystem.exists(changelogFilePath)) {
       const existingContent = await this._fileSystem.readTextFile(changelogFilePath);
@@ -35300,6 +35402,7 @@ class PrepareRelease {
       configurationPath: request.changelogConfigurationPath,
       tagPattern: releaseContext.tagPattern,
       ...releaseContext.includePath === null ? {} : { includePath: releaseContext.includePath },
+      ...preparationPolicy.ignoredTagPattern === null ? {} : { ignoredTagPattern: preparationPolicy.ignoredTagPattern },
       revision: tagCommitHash,
       latest: false,
       verbose: true,
@@ -35309,30 +35412,35 @@ class PrepareRelease {
     await this._fileSystem.writeTextFile(changelogFilePath, changelogContent);
   }
   async execute(request) {
-    const releaseContext = ReleaseContext.resolve(
-      ReleaseTag.fromTagName(request.tagName),
-      request.packageWorkspaces
-    );
+    const releaseTag = ReleaseTag.fromTagName(request.tagName);
+    const releaseContext = ReleaseContext.resolve(releaseTag, request.packageWorkspaces);
+    const preparationPolicy = new ReleasePreparationPolicy(releaseTag);
     await this._gitRepository.configureAuthor(request.author);
-    await this._gitRepository.createBranch(releaseContext.releaseBranch);
-    const changelogSection = await this._generateLatestChangelogSection(request, releaseContext);
-    await this._updateChangelog(request, releaseContext, changelogSection);
+    await this._createPreparationBranch(releaseContext, preparationPolicy);
+    const pullRequestBaseBranch = preparationPolicy.resolvePullRequestBaseBranch(request.baseBranch);
+    const changelogSection = await this._generateLatestChangelogSection(
+      request,
+      releaseContext,
+      preparationPolicy
+    );
+    await this._updateChangelog(request, releaseContext, preparationPolicy, changelogSection);
     await this._gitRepository.stagePaths([releaseContext.changelogPath]);
-    await this._gitRepository.commit(`release: ${releaseContext.releaseLabel}`);
-    await this._gitRepository.pushBranch("origin", releaseContext.releaseBranch);
+    await this._gitRepository.commit(preparationPolicy.pullRequestTitle);
+    await this._gitRepository.pushBranch(PrepareRelease._remoteName, preparationPolicy.workingBranch);
     const pullRequest = await this._gitHubClient.createPullRequest({
       repository: request.repository,
-      title: `release: ${releaseContext.releaseLabel}`,
+      title: preparationPolicy.pullRequestTitle,
       body: PrepareRelease._removeSectionHeading(changelogSection),
-      baseBranch: request.baseBranch,
-      headBranch: releaseContext.releaseBranch
+      baseBranch: pullRequestBaseBranch,
+      headBranch: preparationPolicy.workingBranch
     });
     return {
       tagName: releaseContext.tagName,
       releaseVersion: releaseContext.releaseVersion,
       releaseLabel: releaseContext.releaseLabel,
       changelogPath: releaseContext.changelogPath,
-      releaseBranch: releaseContext.releaseBranch,
+      releaseBranch: preparationPolicy.workingBranch,
+      pullRequestBaseBranch,
       pullRequest
     };
   }

@@ -71,6 +71,14 @@ export class ReleaseTag {
         return `${this._packageName.value}@${this._version.versionTag}`;
     }
 
+    public get targetTagName(): string {
+        if (this._packageName === null) {
+            return this._version.stableVersionTag;
+        }
+
+        return `${this._packageName.value}/${this._version.stableVersionTag}`;
+    }
+
     public get releaseTitle(): string {
         if (this._packageName === null) {
             return this._version.value;
@@ -85,6 +93,14 @@ export class ReleaseTag {
         }
 
         return `^${this._packageName.regularExpressionValue}/v[0-9].*`;
+    }
+
+    public get prereleaseTagPattern(): string {
+        if (this._packageName === null) {
+            return '^v[0-9]+\\.[0-9]+\\.[0-9]+-.*';
+        }
+
+        return `^${this._packageName.regularExpressionValue}/v[0-9]+\\.[0-9]+\\.[0-9]+-.*`;
     }
 
     public get isMonorepoRelease(): boolean {

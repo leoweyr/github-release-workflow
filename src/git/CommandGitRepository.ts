@@ -56,6 +56,14 @@ export class CommandGitRepository implements GitRepository {
         await this._execute(['push', remoteName, branchName]);
     }
 
+    public async pushRevisionAsBranch(
+        remoteName: string,
+        sourceRevision: string,
+        branchName: string,
+    ): Promise<void> {
+        await this._execute(['push', remoteName, `${sourceRevision}:refs/heads/${branchName}`]);
+    }
+
     public async resolveCommit(revision: string): Promise<string> {
         const result: CommandExecutionResult = await this._execute([
             'rev-parse',
@@ -81,6 +89,15 @@ export class CommandGitRepository implements GitRepository {
         }
 
         return commitDate;
+    }
+
+    public async fetchRemoteBranch(remoteName: string, branchName: string): Promise<void> {
+        await this._execute([
+            'fetch',
+            '--no-tags',
+            remoteName,
+            `refs/heads/${branchName}:refs/remotes/${remoteName}/${branchName}`,
+        ]);
     }
 
     public async remoteBranchExists(remoteName: string, branchName: string): Promise<boolean> {

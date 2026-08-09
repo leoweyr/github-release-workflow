@@ -64,8 +64,4 @@ export class ReleaseContext {
     public get tagPattern(): string {
         return this._releaseTag.tagPattern;
     }
-
-    public get releaseBranch(): string {
-        return `release/${this._releaseTag.tagName}`;
-    }
 }

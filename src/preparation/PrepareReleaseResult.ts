@@ -7,5 +7,6 @@ export interface PrepareReleaseResult {
     readonly releaseLabel: string;
     readonly changelogPath: string;
     readonly releaseBranch: string;
+    readonly pullRequestBaseBranch: string;
     readonly pullRequest: PullRequestReference;
 }

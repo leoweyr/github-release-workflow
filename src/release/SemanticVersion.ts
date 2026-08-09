@@ -56,6 +56,14 @@ export class SemanticVersion {
         return `v${this._value}`;
     }
 
+    public get stableValue(): string {
+        return `${this._major}.${this._minor}.${this._patch}`;
+    }
+
+    public get stableVersionTag(): string {
+        return `v${this.stableValue}`;
+    }
+
     public get major(): bigint {
         return this._major;
     }
