@@ -1,6 +1,5 @@
 'use strict';
 
-var node_path = require('node:path');
 var os = require('os');
 var crypto = require('crypto');
 var fs = require('fs');
@@ -36,6 +35,7 @@ var timers$1 = require('timers');
 var node_fs = require('node:fs');
 var promises = require('node:fs/promises');
 var node_os = require('node:os');
+var node_path = require('node:path');
 
 function _interopNamespaceDefault(e) {
     var n = Object.create(null);
@@ -29504,6 +29504,39 @@ class NpmPackageOverridesParser {
   }
 }
 
+class MissingNpmPackageFileError extends Error {
+  constructor(packageFilePath) {
+    super(`NPM package file '${packageFilePath}' does not exist.`);
+    this.name = "MissingNpmPackageFileError";
+  }
+}
+
+class NpmPackagePublisher {
+  _commandRunner;
+  _fileSystem;
+  constructor(commandRunner, fileSystem) {
+    this._commandRunner = commandRunner;
+    this._fileSystem = fileSystem;
+  }
+  async publish(workingDirectory, packageDirectoryValue, deployCommand, accessToken) {
+    const packageDirectory = node_path.resolve(workingDirectory, packageDirectoryValue);
+    const packageFilePath = node_path.resolve(packageDirectory, "package.json");
+    if (!await this._fileSystem.exists(packageFilePath)) {
+      throw new MissingNpmPackageFileError(packageFilePath);
+    }
+    await this._commandRunner.execute("npm", ["ci"], {
+      workingDirectory: packageDirectory
+    });
+    await this._commandRunner.execute("bash", ["-e", "-o", "pipefail", "-c", deployCommand], {
+      workingDirectory: packageDirectory,
+      environment: {
+        NODE_AUTH_TOKEN: accessToken
+      }
+    });
+    return packageDirectory;
+  }
+}
+
 class InvalidNpmPublishConfigurationError extends Error {
   constructor(propertyName) {
     super(`NPM publish configuration property '${propertyName}' must not be empty.`);
@@ -29598,20 +29631,6 @@ class NpmPublishConfiguration {
   }
 }
 
-class InvalidNpmPackagePublishingOperationError extends Error {
-  constructor(operation) {
-    super(`NPM package publishing operation '${operation ?? ""}' is not supported.`);
-    this.name = "InvalidNpmPackagePublishingOperationError";
-  }
-}
-
-class MissingNpmPackageFileError extends Error {
-  constructor(packageFilePath) {
-    super(`NPM package file '${packageFilePath}' does not exist.`);
-    this.name = "MissingNpmPackageFileError";
-  }
-}
-
 class PublishNpmPackageAction {
   static _accessTokenEnvironment = "NPM_PUBLISH_ACCESS_TOKEN";
   static _deployCommandEnvironment = "NPM_PUBLISH_DEPLOY_COMMAND";
@@ -29619,8 +29638,6 @@ class PublishNpmPackageAction {
   static _packageDirectoryEnvironment = "NPM_PUBLISH_PACKAGE_DIRECTORY";
   static _packageNameEnvironment = "NPM_PUBLISH_PACKAGE_NAME";
   static _packageOverridesEnvironment = "NPM_PUBLISH_PACKAGE_OVERRIDES";
-  static _prepareOperation = "prepare";
-  static _publishOperation = "publish";
   static _workingDirectoryEnvironment = "NPM_PUBLISH_WORKING_DIRECTORY";
   static _createConfiguration() {
     const packageOverrides = NpmPackageOverridesParser.parse(
@@ -29646,7 +29663,7 @@ class PublishNpmPackageAction {
       PublishNpmPackageAction._accessTokenEnvironment
     );
     if (accessToken.length === 0) {
-      setOutput("enabled", "false");
+      setOutput("enabled", false);
       info("NPM_TOKEN is not configured. NPM package publishing is skipped.");
       return;
     }
@@ -29656,7 +29673,7 @@ class PublishNpmPackageAction {
     );
     const packageName = packageNameValue.length === 0 ? null : PackageName.parse(packageNameValue);
     const settings = PublishNpmPackageAction._createConfiguration().resolve(packageName);
-    setOutput("enabled", "true");
+    setOutput("enabled", true);
     setOutput("node-version", settings.nodeVersion);
     setOutput("package-dir", settings.packageDirectory);
     setOutput("deploy-command", settings.deployCommand);
@@ -29666,29 +29683,13 @@ class PublishNpmPackageAction {
       PublishNpmPackageAction._accessTokenEnvironment
     );
     setSecret(accessToken);
-    const workingDirectory = PublishNpmPackageAction._readEnvironment(
-      PublishNpmPackageAction._workingDirectoryEnvironment
+    const publisher = new NpmPackagePublisher(commandRunner, fileSystem);
+    const packageDirectory = await publisher.publish(
+      PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._workingDirectoryEnvironment),
+      PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._packageDirectoryEnvironment),
+      PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._deployCommandEnvironment),
+      accessToken
     );
-    const packageDirectory = node_path.resolve(
-      workingDirectory,
-      PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._packageDirectoryEnvironment)
-    );
-    const packageFilePath = node_path.resolve(packageDirectory, "package.json");
-    if (!await fileSystem.exists(packageFilePath)) {
-      throw new MissingNpmPackageFileError(packageFilePath);
-    }
-    await commandRunner.execute("npm", ["ci"], {
-      workingDirectory: packageDirectory
-    });
-    const deployCommand = PublishNpmPackageAction._readEnvironment(
-      PublishNpmPackageAction._deployCommandEnvironment
-    );
-    await commandRunner.execute("bash", ["-e", "-o", "pipefail", "-c", deployCommand], {
-      workingDirectory: packageDirectory,
-      environment: {
-        NODE_AUTH_TOKEN: accessToken
-      }
-    });
     info(`Published the NPM package from '${packageDirectory}'.`);
   }
   static _readEnvironment(environmentName) {
@@ -29703,15 +29704,15 @@ class PublishNpmPackageAction {
   static async run(commandRunner = new ActionCommandRunner(), fileSystem = new NodeFileSystem()) {
     try {
       const operation = process.argv[2];
-      if (operation === PublishNpmPackageAction._prepareOperation) {
+      if (operation === "prepare") {
         PublishNpmPackageAction._prepare();
         return;
       }
-      if (operation === PublishNpmPackageAction._publishOperation) {
+      if (operation === "publish") {
         await PublishNpmPackageAction._publish(commandRunner, fileSystem);
         return;
       }
-      throw new InvalidNpmPackagePublishingOperationError(operation);
+      throw new Error(`NPM package publishing operation '${operation ?? ""}' is not supported.`);
     } catch (error) {
       setFailed(PublishNpmPackageAction._toError(error));
     }

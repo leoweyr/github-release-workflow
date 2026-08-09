@@ -1,5 +1,3 @@
-import { resolve } from 'node:path';
-
 import * as core from '@actions/core';
 
 import { ActionCommandRunner } from '../../command/ActionCommandRunner';
@@ -8,11 +6,10 @@ import type { FileSystem } from '../../file-system/FileSystem';
 import { NodeFileSystem } from '../../file-system/NodeFileSystem';
 import type { NpmPackageOverride } from '../../publishing/npm/NpmPackageOverride';
 import { NpmPackageOverridesParser } from '../../publishing/npm/NpmPackageOverridesParser';
+import { NpmPackagePublisher } from '../../publishing/npm/NpmPackagePublisher';
 import { NpmPublishConfiguration } from '../../publishing/npm/NpmPublishConfiguration';
 import type { NpmPublishSettings } from '../../publishing/npm/NpmPublishSettings';
 import { PackageName } from '../../release/PackageName';
-import { InvalidNpmPackagePublishingOperationError } from './exceptions/InvalidNpmPackagePublishingOperationError';
-import { MissingNpmPackageFileError } from './exceptions/MissingNpmPackageFileError';
 
 
 export class PublishNpmPackageAction {
@@ -22,8 +19,6 @@ export class PublishNpmPackageAction {
     private static readonly _packageDirectoryEnvironment: string = 'NPM_PUBLISH_PACKAGE_DIRECTORY';
     private static readonly _packageNameEnvironment: string = 'NPM_PUBLISH_PACKAGE_NAME';
     private static readonly _packageOverridesEnvironment: string = 'NPM_PUBLISH_PACKAGE_OVERRIDES';
-    private static readonly _prepareOperation: string = 'prepare';
-    private static readonly _publishOperation: string = 'publish';
     private static readonly _workingDirectoryEnvironment: string = 'NPM_PUBLISH_WORKING_DIRECTORY';
 
     private static _createConfiguration(): NpmPublishConfiguration {
@@ -53,7 +48,7 @@ export class PublishNpmPackageAction {
         );
 
         if (accessToken.length === 0) {
-            core.setOutput('enabled', 'false');
+            core.setOutput('enabled', false);
             core.info('NPM_TOKEN is not configured. NPM package publishing is skipped.');
 
             return;
@@ -71,7 +66,7 @@ export class PublishNpmPackageAction {
 
         const settings: NpmPublishSettings = PublishNpmPackageAction._createConfiguration().resolve(packageName);
 
-        core.setOutput('enabled', 'true');
+        core.setOutput('enabled', true);
         core.setOutput('node-version', settings.nodeVersion);
         core.setOutput('package-dir', settings.packageDirectory);
         core.setOutput('deploy-command', settings.deployCommand);
@@ -84,36 +79,13 @@ export class PublishNpmPackageAction {
 
         core.setSecret(accessToken);
 
-        const workingDirectory: string = PublishNpmPackageAction._readEnvironment(
-            PublishNpmPackageAction._workingDirectoryEnvironment,
-        );
-
-        const packageDirectory: string = resolve(
-            workingDirectory,
+        const publisher: NpmPackagePublisher = new NpmPackagePublisher(commandRunner, fileSystem);
+        const packageDirectory: string = await publisher.publish(
+            PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._workingDirectoryEnvironment),
             PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._packageDirectoryEnvironment),
+            PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._deployCommandEnvironment),
+            accessToken,
         );
-
-        const packageFilePath: string = resolve(packageDirectory, 'package.json');
-
-        if (!await fileSystem.exists(packageFilePath)) {
-            throw new MissingNpmPackageFileError(packageFilePath);
-        }
-
-        await commandRunner.execute('npm', ['ci'], {
-            workingDirectory: packageDirectory,
-        });
-
-        const deployCommand: string = PublishNpmPackageAction._readEnvironment(
-            PublishNpmPackageAction._deployCommandEnvironment,
-        );
-
-        // Treat the deploy command as trusted workflow configuration while preventing token interpolation.
-        await commandRunner.execute('bash', ['-e', '-o', 'pipefail', '-c', deployCommand], {
-            workingDirectory: packageDirectory,
-            environment: {
-                NODE_AUTH_TOKEN: accessToken,
-            },
-        });
 
         core.info(`Published the NPM package from '${packageDirectory}'.`);
     }
@@ -137,19 +109,19 @@ export class PublishNpmPackageAction {
         try {
             const operation: string | undefined = process.argv[2];
 
-            if (operation === PublishNpmPackageAction._prepareOperation) {
+            if (operation === 'prepare') {
                 PublishNpmPackageAction._prepare();
 
                 return;
             }
 
-            if (operation === PublishNpmPackageAction._publishOperation) {
+            if (operation === 'publish') {
                 await PublishNpmPackageAction._publish(commandRunner, fileSystem);
 
                 return;
             }
 
-            throw new InvalidNpmPackagePublishingOperationError(operation);
+            throw new Error(`NPM package publishing operation '${operation ?? ''}' is not supported.`);
         } catch (error: unknown) {
             core.setFailed(PublishNpmPackageAction._toError(error));
         }
