@@ -9,6 +9,7 @@ export class NpmPublishConfiguration {
         NpmPublishConfiguration._assertNotEmpty('nodeVersion', settings.nodeVersion);
         NpmPublishConfiguration._assertNotEmpty('packageDirectory', settings.packageDirectory);
         NpmPublishConfiguration._assertNotEmpty('deployCommand', settings.deployCommand);
+        NpmPublishConfiguration._assertNotEmpty('distTag', settings.distTag);
 
         return { ...settings };
     }
@@ -71,6 +72,7 @@ export class NpmPublishConfiguration {
                 packageOverride.deployCommand,
                 this._defaults.deployCommand,
             ),
+            distTag: NpmPublishConfiguration._useOverride(packageOverride.distTag, this._defaults.distTag),
         };
 
         return resolvedSettings;

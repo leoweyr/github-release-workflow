@@ -1,7 +1,7 @@
 'use strict';
 
 var os = require('os');
-var crypto = require('crypto');
+require('crypto');
 var fs = require('fs');
 var path = require('path');
 var http = require('http');
@@ -51,7 +51,6 @@ function _interopNamespaceDefault(e) {
 }
 
 var os__namespace = /*#__PURE__*/_interopNamespaceDefault(os);
-var crypto__namespace = /*#__PURE__*/_interopNamespaceDefault(crypto);
 var fs__namespace = /*#__PURE__*/_interopNamespaceDefault(fs);
 var path__namespace = /*#__PURE__*/_interopNamespaceDefault(path);
 var events__namespace = /*#__PURE__*/_interopNamespaceDefault(events$1);
@@ -176,36 +175,6 @@ function escapeProperty(s) {
         .replace(/\n/g, '%0A')
         .replace(/:/g, '%3A')
         .replace(/,/g, '%2C');
-}
-
-// For internal use, subject to change.
-// We use any as a valid input type
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function issueFileCommand(command, message) {
-    const filePath = process.env[`GITHUB_${command}`];
-    if (!filePath) {
-        throw new Error(`Unable to find environment variable for file command ${command}`);
-    }
-    if (!fs__namespace.existsSync(filePath)) {
-        throw new Error(`Missing file at path: ${filePath}`);
-    }
-    fs__namespace.appendFileSync(filePath, `${toCommandValue(message)}${os__namespace.EOL}`, {
-        encoding: 'utf8'
-    });
-}
-function prepareKeyValueMessage(key, value) {
-    const delimiter = `ghadelimiter_${crypto__namespace.randomUUID()}`;
-    const convertedValue = toCommandValue(value);
-    // These should realistically never happen, but just in case someone finds a
-    // way to exploit uuid generation let's not allow keys or values that contain
-    // the delimiter.
-    if (key.includes(delimiter)) {
-        throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
-    }
-    if (convertedValue.includes(delimiter)) {
-        throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
-    }
-    return `${key}<<${delimiter}${os__namespace.EOL}${convertedValue}${os__namespace.EOL}${delimiter}`;
 }
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -29285,42 +29254,6 @@ function getInput(name, options) {
     }
     return val.trim();
 }
-/**
- * Gets the input value of the boolean type in the YAML 1.2 "core schema" specification.
- * Support boolean input list: `true | True | TRUE | false | False | FALSE` .
- * The return value is also in boolean type.
- * ref: https://yaml.org/spec/1.2/spec.html#id2804923
- *
- * @param     name     name of the input to get
- * @param     options  optional. See InputOptions.
- * @returns   boolean
- */
-function getBooleanInput(name, options) {
-    const trueValue = ['true', 'True', 'TRUE'];
-    const falseValue = ['false', 'False', 'FALSE'];
-    const val = getInput(name, options);
-    if (trueValue.includes(val))
-        return true;
-    if (falseValue.includes(val))
-        return false;
-    throw new TypeError(`Input does not meet YAML 1.2 "Core Schema" specification: ${name}\n` +
-        `Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
-}
-/**
- * Sets the value of an output.
- *
- * @param     name     name of the output to set
- * @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setOutput(name, value) {
-    const filePath = process.env['GITHUB_OUTPUT'] || '';
-    if (filePath) {
-        return issueFileCommand('OUTPUT', prepareKeyValueMessage(name, value));
-    }
-    process.stdout.write(os__namespace.EOL);
-    issueCommand('set-output', { name }, toCommandValue(value));
-}
 //-----------------------------------------------------------------------
 // Results
 //-----------------------------------------------------------------------
@@ -34842,8 +34775,20 @@ class OctokitGitHubClient {
       identifier: release.id,
       url: release.html_url,
       tagName: release.tag_name,
+      title: release.name,
+      body: release.body ?? null,
       draft: release.draft,
       prerelease: release.prerelease
+    };
+  }
+  static _toPullRequestReference(pullRequests) {
+    const pullRequest = pullRequests[0];
+    if (pullRequest === void 0) {
+      return null;
+    }
+    return {
+      number: pullRequest.number,
+      url: pullRequest.html_url
     };
   }
   _octokit;
@@ -34873,14 +34818,18 @@ class OctokitGitHubClient {
       head: `${request.repository.owner}:${request.headBranch}`,
       per_page: 1
     });
-    const pullRequest = response.data[0];
-    if (pullRequest === void 0) {
-      return null;
-    }
-    return {
-      number: pullRequest.number,
-      url: pullRequest.html_url
-    };
+    return OctokitGitHubClient._toPullRequestReference(response.data);
+  }
+  async findPullRequest(request) {
+    const response = await this._octokit.rest.pulls.list({
+      owner: request.repository.owner,
+      repo: request.repository.name,
+      state: "all",
+      base: request.baseBranch,
+      head: `${request.repository.owner}:${request.headBranch}`,
+      per_page: 1
+    });
+    return OctokitGitHubClient._toPullRequestReference(response.data);
   }
   async createRelease(request) {
     const baseParameters = {
@@ -34944,9 +34893,28 @@ class OctokitGitHubClient {
 }
 
 const GitHubReleaseLatestPolicy = {
-  AUTOMATIC: "legacy"};
+  AUTOMATIC: "legacy",
+  NOT_LATEST: "false"
+};
+
+class ConflictingGitHubReleaseError extends Error {
+  constructor(tagName) {
+    super(`GitHub Release '${tagName}' already exists with conflicting attributes.`);
+    this.name = "ConflictingGitHubReleaseError";
+  }
+}
+
+class ReleaseTagOutsidePublishedBranchError extends Error {
+  constructor(tagName) {
+    super(`Release tag '${tagName}' is not part of the merged pull request base branch.`);
+    this.name = "ReleaseTagOutsidePublishedBranchError";
+  }
+}
 
 class GitHubReleasePublisher {
+  static _releaseMatches(releaseReference, releaseTag, releaseBody) {
+    return releaseReference.tagName === releaseTag.tagName && releaseReference.title === releaseTag.releaseTitle && (releaseReference.body ?? "") === releaseBody && !releaseReference.draft && releaseReference.prerelease === releaseTag.version.isPrerelease;
+  }
   _gitRepository;
   _gitHubClient;
   constructor(gitRepository, gitHubClient) {
@@ -34955,18 +34923,34 @@ class GitHubReleasePublisher {
   }
   async publish(repository, releaseTag, releaseBody) {
     const tagCommitHash = await this._gitRepository.resolveCommit(`refs/tags/${releaseTag.tagName}`);
-    const releaseDate = await this._gitRepository.getCommitDate(tagCommitHash);
+    const tagBelongsToPublishedBranch = await this._gitRepository.isAncestor(tagCommitHash, "HEAD");
+    if (!tagBelongsToPublishedBranch) {
+      throw new ReleaseTagOutsidePublishedBranchError(releaseTag.tagName);
+    }
+    const existingRelease = await this._gitHubClient.getReleaseByTag(
+      repository,
+      releaseTag.tagName
+    );
+    if (existingRelease !== null) {
+      if (!GitHubReleasePublisher._releaseMatches(existingRelease, releaseTag, releaseBody)) {
+        throw new ConflictingGitHubReleaseError(releaseTag.tagName);
+      }
+      return {
+        created: false,
+        reference: existingRelease
+      };
+    }
     const releaseReference = await this._gitHubClient.createRelease({
       repository,
       tagName: releaseTag.tagName,
       title: releaseTag.releaseTitle,
       body: releaseBody,
       draft: false,
-      prerelease: false,
-      makeLatest: GitHubReleaseLatestPolicy.AUTOMATIC
+      prerelease: releaseTag.version.isPrerelease,
+      makeLatest: releaseTag.version.isPrerelease ? GitHubReleaseLatestPolicy.NOT_LATEST : GitHubReleaseLatestPolicy.AUTOMATIC
     });
     return {
-      releaseAt: releaseDate.toISOString(),
+      created: true,
       reference: releaseReference
     };
   }
@@ -35168,34 +35152,7 @@ class ReleaseTag {
   }
 }
 
-class InvalidReleasePullRequestTitleError extends Error {
-  constructor(pullRequestTitle) {
-    super(`Pull request title '${pullRequestTitle}' does not identify a stable release.`);
-    this.name = "InvalidReleasePullRequestTitleError";
-  }
-}
-
-class UnmergedReleasePullRequestError extends Error {
-  constructor() {
-    super("The release pull request must be merged before publishing.");
-    this.name = "UnmergedReleasePullRequestError";
-  }
-}
-
 class PublishGitHubReleaseAction {
-  static _releaseTitlePrefix = "release: ";
-  static _parseReleaseTag(pullRequestTitle) {
-    if (!pullRequestTitle.startsWith(PublishGitHubReleaseAction._releaseTitlePrefix)) {
-      throw new InvalidReleasePullRequestTitleError(pullRequestTitle);
-    }
-    const releaseLabel = pullRequestTitle.slice(PublishGitHubReleaseAction._releaseTitlePrefix.length);
-    return ReleaseTag.fromReleaseLabel(releaseLabel);
-  }
-  static _setOutputs(releaseTag, githubPublication) {
-    setOutput("release-version", releaseTag.version.value);
-    setOutput("release-at", githubPublication.releaseAt);
-    setOutput("package-name", releaseTag.packageName?.value ?? "");
-  }
   static _toError(error) {
     if (error instanceof Error) {
       return error;
@@ -35204,14 +35161,11 @@ class PublishGitHubReleaseAction {
   }
   static async run() {
     try {
-      const pullRequestMerged = getBooleanInput("pull-request-merged", { required: true });
-      if (!pullRequestMerged) {
-        throw new UnmergedReleasePullRequestError();
-      }
       const accessToken = getInput("access-token", { required: true });
       setSecret(accessToken);
-      const pullRequestTitle = getInput("pull-request-title", { required: true });
-      const releaseTag = PublishGitHubReleaseAction._parseReleaseTag(pullRequestTitle);
+      const releaseTag = ReleaseTag.fromTagName(
+        getInput("tag-name", { required: true })
+      );
       const repositoryContext = context.repo;
       const repository = {
         owner: repositoryContext.owner,
@@ -35231,8 +35185,10 @@ class PublishGitHubReleaseAction {
         releaseTag,
         getInput("release-body", { trimWhitespace: false })
       );
-      PublishGitHubReleaseAction._setOutputs(releaseTag, githubPublication);
-      info(`Created GitHub Release '${releaseTag.releaseTitle}': ${githubPublication.reference.url}`);
+      const publicationStatus = githubPublication.created ? "Created" : "Reused";
+      info(
+        `${publicationStatus} GitHub Release '${releaseTag.releaseTitle}': ${githubPublication.reference.url}`
+      );
     } catch (error) {
       setFailed(PublishGitHubReleaseAction._toError(error));
     }

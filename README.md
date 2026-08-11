@@ -18,6 +18,8 @@ Add professional release automation to your personal project with a single step:
 
 ## ⚙ How It Works
 
+![Release Flow](docs/release-flow.png)
+
 This workflow streamlines your release process into a few simple steps:
 
 1.  **Tag Your Release**: On your development branch (separate from `master` or `main`), create a git tag with a `v` prefix (e.g., `v1.0.0`).
@@ -33,8 +35,9 @@ This workflow streamlines your release process into a few simple steps:
 
 3.  **Automated Magic**: GitHub Actions will automatically:
     *   Generate a changelog based on your conventional commits.
-    *   Create a specific release branch.
-    *   Open a Pull Request to your default branch (e.g., `master`).
+    *   For the first prerelease, create `release/v<stable-version>` and `prerelease/<tag>` branches at the tagged commit, and open a Pull Request to the persistent release branch.
+    *   For later prereleases, create `prerelease/<tag>` branch at the tagged commit, and open a Pull Request to the same persistent release branch.
+    *   For the stable release that concludes the prerelease series, merge `prerelease/<stable-tag>` into the persistent release branch and then promote the release branch to the main branch through a second Pull Request.
 
 4.  **Review and Merge**: Review the Pull Request created by the bot.
     *   **Do not modify the Pull Request title or body**, as they are used for the release metadata.
@@ -75,7 +78,6 @@ This workflow also releases individual sub-packages inside a mono-repo. Each sub
      call-prepare:
        uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@develop
        with:
-         base-branch: 'master'
          packages: |
            {
              "core": "packages/core",

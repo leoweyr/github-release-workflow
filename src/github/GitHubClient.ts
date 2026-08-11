@@ -10,6 +10,7 @@ import type { WorkflowDispatchRequest } from './WorkflowDispatchRequest';
 export interface GitHubClient {
     createPullRequest(request: PullRequestCreationRequest): Promise<PullRequestReference>;
     findOpenPullRequest(request: PullRequestSearchRequest): Promise<PullRequestReference | null>;
+    findPullRequest(request: PullRequestSearchRequest): Promise<PullRequestReference | null>;
     createRelease(request: GitHubReleaseCreationRequest): Promise<GitHubReleaseReference>;
     getReleaseByTag(
         repository: GitHubRepositoryReference,

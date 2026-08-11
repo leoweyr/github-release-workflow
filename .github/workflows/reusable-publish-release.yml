@@ -4,6 +4,12 @@ name: Publish Release
 on:
   workflow_call:
     inputs:
+      main-branch:
+        description: 'Main branch targeted by stable release pull requests.'
+        required: false
+        type: string
+        default: 'master'
+
       npm-node-version:
         description: 'Node.js version for NPM package publishing.'
         required: false
@@ -48,9 +54,50 @@ on:
 
 
 jobs:
-  publish-release:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, 'release:')
+  route_release:
+    if: >-
+      github.event.pull_request.merged == true
+      && startsWith(github.event.pull_request.title, 'release:')
     runs-on: ubuntu-latest
+    outputs:
+      publish_release: ${{ steps.route_release.outputs['publish-release'] }}
+    concurrency:
+      group: route-release-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 🔄 Sync Release Routing Action
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/route-release
+
+      - name: 🚦 Route Release
+        id: route_release
+        uses: ./.release-workflow/.github/actions/route-release
+        with:
+          access-token: ${{ secrets.ACCESS_TOKEN }}
+          pull-request-title: ${{ github.event.pull_request.title }}
+          pull-request-body: ${{ github.event.pull_request.body }}
+          base-branch: ${{ github.event.pull_request.base.ref }}
+          head-branch: ${{ github.event.pull_request.head.ref }}
+          main-branch: ${{ inputs.main-branch }}
+
+  resolve_release:
+    needs: route_release
+    if: >-
+      needs.route_release.result == 'success'
+      && needs.route_release.outputs.publish_release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.resolve_release_metadata.outputs['tag-name'] }}
+      release_version: ${{ steps.resolve_release_metadata.outputs['release-version'] }}
+      release_at: ${{ steps.resolve_release_metadata.outputs['release-at'] }}
+      package_name: ${{ steps.resolve_release_metadata.outputs['package-name'] }}
+      prerelease: ${{ steps.resolve_release_metadata.outputs.prerelease }}
 
     steps:
       - name: 👣 Track Workflow Run
@@ -62,8 +109,39 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.ref }}
 
-      - name: 🔄 Sync Release Actions
+      - name: 🔄 Sync Release Resolution Action
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/resolve-release
+
+      - name: 🔍 Resolve Release Metadata
+        id: resolve_release_metadata
+        uses: ./.release-workflow/.github/actions/resolve-release
+        with:
+          pull-request-title: ${{ github.event.pull_request.title }}
+          working-directory: ${{ github.workspace }}
+
+  publish_github_release:
+    needs: resolve_release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-github-release-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 📂 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: 🔄 Sync GitHub Release Publication Action
         uses: actions/checkout@v4
         with:
           repository: ${{ job.workflow_repository }}
@@ -71,18 +149,36 @@ jobs:
           path: .release-workflow
           sparse-checkout: |
             .github/actions/publish-github-release
-            .github/actions/publish-npm-package
-            .github/actions/bump-trb-project-node-version
 
       - name: 🚀 Publish GitHub Release
-        id: publish_github_release
         uses: ./.release-workflow/.github/actions/publish-github-release
         with:
           access-token: ${{ secrets.ACCESS_TOKEN }}
-          pull-request-merged: ${{ github.event.pull_request.merged }}
-          pull-request-title: ${{ github.event.pull_request.title }}
+          tag-name: ${{ needs.resolve_release.outputs.tag_name }}
           release-body: ${{ github.event.pull_request.body }}
           working-directory: ${{ github.workspace }}
+
+  publish_npm_package:
+    needs: resolve_release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-npm-package-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 📂 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: 🔄 Sync NPM Package Publication Action
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/publish-npm-package
 
       - name: 🚀 Deploy NPM Package
         uses: ./.release-workflow/.github/actions/publish-npm-package
@@ -91,15 +187,37 @@ jobs:
           node-version: ${{ inputs.npm-node-version }}
           package-dir: ${{ inputs.npm-package-dir }}
           deploy-command: ${{ inputs.npm-deploy-command }}
-          package-name: ${{ steps.publish_github_release.outputs['package-name'] }}
+          package-name: ${{ needs.resolve_release.outputs.package_name }}
+          release-version: ${{ needs.resolve_release.outputs.release_version }}
           package-overrides: ${{ inputs.package-overrides }}
           working-directory: ${{ github.workspace }}
+
+  bump_trb_project_node_version:
+    needs: resolve_release
+    if: >-
+      needs.resolve_release.result == 'success'
+      && needs.resolve_release.outputs.prerelease != 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: bump-trb-project-node-version-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 🔄 Sync TRB Project Node Version Bumping Action
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/bump-trb-project-node-version
 
       - name: 🚀 Bump TRB Project Node Version
         uses: ./.release-workflow/.github/actions/bump-trb-project-node-version
         with:
           trb-repository: ${{ inputs.trb-repository }}
           project-node-name: ${{ inputs.trb-project-node-name }}
-          release-version: ${{ steps.publish_github_release.outputs['release-version'] }}
-          release-at: ${{ steps.publish_github_release.outputs['release-at'] }}
+          release-version: ${{ needs.resolve_release.outputs.release_version }}
+          release-at: ${{ needs.resolve_release.outputs.release_at }}
+          prerelease: ${{ needs.resolve_release.outputs.prerelease }}
           access-token: ${{ secrets.ACCESS_TOKEN }}

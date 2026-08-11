@@ -28399,6 +28399,27 @@ function getInput(name, options) {
     }
     return val.trim();
 }
+/**
+ * Gets the input value of the boolean type in the YAML 1.2 "core schema" specification.
+ * Support boolean input list: `true | True | TRUE | false | False | FALSE` .
+ * The return value is also in boolean type.
+ * ref: https://yaml.org/spec/1.2/spec.html#id2804923
+ *
+ * @param     name     name of the input to get
+ * @param     options  optional. See InputOptions.
+ * @returns   boolean
+ */
+function getBooleanInput(name, options) {
+    const trueValue = ['true', 'True', 'TRUE'];
+    const falseValue = ['false', 'False', 'FALSE'];
+    const val = getInput(name, options);
+    if (trueValue.includes(val))
+        return true;
+    if (falseValue.includes(val))
+        return false;
+    throw new TypeError(`Input does not meet YAML 1.2 "Core Schema" specification: ${name}\n` +
+        `Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
+}
 //-----------------------------------------------------------------------
 // Results
 //-----------------------------------------------------------------------
@@ -33753,8 +33774,20 @@ class OctokitGitHubClient {
       identifier: release.id,
       url: release.html_url,
       tagName: release.tag_name,
+      title: release.name,
+      body: release.body ?? null,
       draft: release.draft,
       prerelease: release.prerelease
+    };
+  }
+  static _toPullRequestReference(pullRequests) {
+    const pullRequest = pullRequests[0];
+    if (pullRequest === void 0) {
+      return null;
+    }
+    return {
+      number: pullRequest.number,
+      url: pullRequest.html_url
     };
   }
   _octokit;
@@ -33784,14 +33817,18 @@ class OctokitGitHubClient {
       head: `${request.repository.owner}:${request.headBranch}`,
       per_page: 1
     });
-    const pullRequest = response.data[0];
-    if (pullRequest === void 0) {
-      return null;
-    }
-    return {
-      number: pullRequest.number,
-      url: pullRequest.html_url
-    };
+    return OctokitGitHubClient._toPullRequestReference(response.data);
+  }
+  async findPullRequest(request) {
+    const response = await this._octokit.rest.pulls.list({
+      owner: request.repository.owner,
+      repo: request.repository.name,
+      state: "all",
+      base: request.baseBranch,
+      head: `${request.repository.owner}:${request.headBranch}`,
+      per_page: 1
+    });
+    return OctokitGitHubClient._toPullRequestReference(response.data);
   }
   async createRelease(request) {
     const baseParameters = {
@@ -33906,6 +33943,11 @@ class BumpTrbProjectNodeVersionAction {
         info(
           "TRB project node version bump inputs are not fully configured. The operation is skipped."
         );
+        return;
+      }
+      const isPrerelease = getBooleanInput("prerelease", { required: true });
+      if (isPrerelease) {
+        info("TRB prerelease publishing is disabled. The operation is skipped.");
         return;
       }
       const accessToken = getInput("access-token", { required: true });

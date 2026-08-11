@@ -18,6 +18,7 @@ export class NpmPackagePublisher {
         workingDirectory: string,
         packageDirectoryValue: string,
         deployCommand: string,
+        distTag: string,
         accessToken: string,
     ): Promise<string> {
         const packageDirectory: string = resolve(workingDirectory, packageDirectoryValue);
@@ -36,6 +37,7 @@ export class NpmPackagePublisher {
             workingDirectory: packageDirectory,
             environment: {
                 NODE_AUTH_TOKEN: accessToken,
+                NPM_CONFIG_TAG: distTag,
             },
         });
 

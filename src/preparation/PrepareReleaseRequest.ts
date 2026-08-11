@@ -6,7 +6,6 @@ import type { PackageWorkspaceCatalog } from '../release/PackageWorkspaceCatalog
 export interface PrepareReleaseRequest {
     readonly tagName: string;
     readonly repository: GitHubRepositoryReference;
-    readonly baseBranch: string;
     readonly author: GitAuthor;
     readonly packageWorkspaces: PackageWorkspaceCatalog;
     readonly changelogConfigurationPath: string;

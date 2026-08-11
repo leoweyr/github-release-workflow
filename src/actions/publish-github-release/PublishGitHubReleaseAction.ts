@@ -8,32 +8,9 @@ import { OctokitGitHubClient } from '../../github/OctokitGitHubClient';
 import type { GitHubReleasePublication } from '../../publishing/github/GitHubReleasePublication';
 import { GitHubReleasePublisher } from '../../publishing/github/GitHubReleasePublisher';
 import { ReleaseTag } from '../../release/ReleaseTag';
-import { InvalidReleasePullRequestTitleError } from './exceptions/InvalidReleasePullRequestTitleError';
-import { UnmergedReleasePullRequestError } from './exceptions/UnmergedReleasePullRequestError';
 
 
 export class PublishGitHubReleaseAction {
-    private static readonly _releaseTitlePrefix: string = 'release: ';
-
-    private static _parseReleaseTag(pullRequestTitle: string): ReleaseTag {
-        if (!pullRequestTitle.startsWith(PublishGitHubReleaseAction._releaseTitlePrefix)) {
-            throw new InvalidReleasePullRequestTitleError(pullRequestTitle);
-        }
-
-        const releaseLabel: string = pullRequestTitle.slice(PublishGitHubReleaseAction._releaseTitlePrefix.length);
-
-        return ReleaseTag.fromReleaseLabel(releaseLabel);
-    }
-
-    private static _setOutputs(
-        releaseTag: ReleaseTag,
-        githubPublication: GitHubReleasePublication,
-    ): void {
-        core.setOutput('release-version', releaseTag.version.value);
-        core.setOutput('release-at', githubPublication.releaseAt);
-        core.setOutput('package-name', releaseTag.packageName?.value ?? '');
-    }
-
     private static _toError(error: unknown): Error {
         if (error instanceof Error) {
             return error;
@@ -44,18 +21,14 @@ export class PublishGitHubReleaseAction {
 
     public static async run(): Promise<void> {
         try {
-            const pullRequestMerged: boolean = core.getBooleanInput('pull-request-merged', { required: true });
-
-            if (!pullRequestMerged) {
-                throw new UnmergedReleasePullRequestError();
-            }
-
             const accessToken: string = core.getInput('access-token', { required: true });
 
             core.setSecret(accessToken);
 
-            const pullRequestTitle: string = core.getInput('pull-request-title', { required: true });
-            const releaseTag: ReleaseTag = PublishGitHubReleaseAction._parseReleaseTag(pullRequestTitle);
+            const releaseTag: ReleaseTag = ReleaseTag.fromTagName(
+                core.getInput('tag-name', { required: true }),
+            );
+
             const repositoryContext: { owner: string; repo: string } = context.repo;
 
             const repository: GitHubRepositoryReference = {
@@ -80,9 +53,11 @@ export class PublishGitHubReleaseAction {
                 core.getInput('release-body', { trimWhitespace: false }),
             );
 
-            PublishGitHubReleaseAction._setOutputs(releaseTag, githubPublication);
+            const publicationStatus: string = githubPublication.created ? 'Created' : 'Reused';
 
-            core.info(`Created GitHub Release '${releaseTag.releaseTitle}': ${githubPublication.reference.url}`);
+            core.info(
+                `${publicationStatus} GitHub Release '${releaseTag.releaseTitle}': ${githubPublication.reference.url}`
+            );
         } catch (error: unknown) {
             core.setFailed(PublishGitHubReleaseAction._toError(error));
         }

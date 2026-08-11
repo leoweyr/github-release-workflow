@@ -19,7 +19,7 @@ export interface OctokitApi {
             list(parameters: {
                 readonly owner: string;
                 readonly repo: string;
-                readonly state: 'open';
+                readonly state: 'all' | 'open';
                 readonly base: string;
                 readonly head: string;
                 readonly per_page: number;

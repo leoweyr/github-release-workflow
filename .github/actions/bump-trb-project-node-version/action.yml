@@ -21,6 +21,10 @@ inputs:
     description: 'UTC timestamp of the tagged commit in ISO 8601 format (YYYY-MM-DDTHH:mm:ss.000Z).'
     required: true
 
+  prerelease:
+    description: 'Whether the release version is a prerelease.'
+    required: true
+
   access-token:
     description: 'GitHub token with workflow dispatch permission.'
     required: true

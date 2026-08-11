@@ -8,10 +8,13 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 
 jobs:
   call-publish:
     uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@develop
+    with:
+      main-branch: 'master'
     secrets:
       ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}

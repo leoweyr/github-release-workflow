@@ -11,11 +11,6 @@ inputs:
     description: 'Original Git tag that triggered release preparation.'
     required: true
 
-  base-branch:
-    description: 'Base branch name for the release pull request.'
-    required: false
-    default: 'master'
-
   commit-user-name:
     description: 'Git user name for commit.'
     required: false

@@ -7,12 +7,8 @@ inputs:
     description: 'GitHub token used to create the release.'
     required: true
 
-  pull-request-merged:
-    description: 'Whether the release pull request was merged.'
-    required: true
-
-  pull-request-title:
-    description: 'Merged release pull request title.'
+  tag-name:
+    description: 'Release Git tag.'
     required: true
 
   release-body:
@@ -24,16 +20,6 @@ inputs:
     description: 'Checked-out caller repository containing the release tag.'
     required: false
     default: '.'
-
-
-outputs:
-  release-version:
-    description: 'Release version without the `v` prefix.'
-  release-at:
-    description: 'UTC timestamp of the tagged commit.'
-  package-name:
-    description: 'Monorepo package name, or an empty string for monolith repository.'
-
 
 runs:
   using: 'node24'

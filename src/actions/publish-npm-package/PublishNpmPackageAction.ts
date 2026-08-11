@@ -10,20 +10,27 @@ import { NpmPackagePublisher } from '../../publishing/npm/NpmPackagePublisher';
 import { NpmPublishConfiguration } from '../../publishing/npm/NpmPublishConfiguration';
 import type { NpmPublishSettings } from '../../publishing/npm/NpmPublishSettings';
 import { PackageName } from '../../release/PackageName';
+import { SemanticVersion } from '../../release/SemanticVersion';
 
 
 export class PublishNpmPackageAction {
     private static readonly _accessTokenEnvironment: string = 'NPM_PUBLISH_ACCESS_TOKEN';
     private static readonly _deployCommandEnvironment: string = 'NPM_PUBLISH_DEPLOY_COMMAND';
+    private static readonly _distTagEnvironment: string = 'NPM_PUBLISH_DIST_TAG';
     private static readonly _nodeVersionEnvironment: string = 'NPM_PUBLISH_NODE_VERSION';
     private static readonly _packageDirectoryEnvironment: string = 'NPM_PUBLISH_PACKAGE_DIRECTORY';
     private static readonly _packageNameEnvironment: string = 'NPM_PUBLISH_PACKAGE_NAME';
     private static readonly _packageOverridesEnvironment: string = 'NPM_PUBLISH_PACKAGE_OVERRIDES';
+    private static readonly _releaseVersionEnvironment: string = 'NPM_PUBLISH_RELEASE_VERSION';
     private static readonly _workingDirectoryEnvironment: string = 'NPM_PUBLISH_WORKING_DIRECTORY';
 
     private static _createConfiguration(): NpmPublishConfiguration {
         const packageOverrides: Readonly<Record<string, NpmPackageOverride>> = NpmPackageOverridesParser.parse(
             PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._packageOverridesEnvironment),
+        );
+
+        const releaseVersion: SemanticVersion = SemanticVersion.parse(
+            PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._releaseVersionEnvironment),
         );
 
         return new NpmPublishConfiguration(
@@ -37,6 +44,7 @@ export class PublishNpmPackageAction {
                 deployCommand: PublishNpmPackageAction._readEnvironment(
                     PublishNpmPackageAction._deployCommandEnvironment,
                 ),
+                distTag: releaseVersion.isPrerelease ? 'next' : 'latest',
             },
             packageOverrides,
         );
@@ -70,6 +78,7 @@ export class PublishNpmPackageAction {
         core.setOutput('node-version', settings.nodeVersion);
         core.setOutput('package-dir', settings.packageDirectory);
         core.setOutput('deploy-command', settings.deployCommand);
+        core.setOutput('dist-tag', settings.distTag);
     }
 
     private static async _publish(commandRunner: CommandRunner, fileSystem: FileSystem): Promise<void> {
@@ -84,6 +93,7 @@ export class PublishNpmPackageAction {
             PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._workingDirectoryEnvironment),
             PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._packageDirectoryEnvironment),
             PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._deployCommandEnvironment),
+            PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._distTagEnvironment),
             accessToken,
         );
 

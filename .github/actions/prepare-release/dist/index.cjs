@@ -34856,8 +34856,20 @@ class OctokitGitHubClient {
       identifier: release.id,
       url: release.html_url,
       tagName: release.tag_name,
+      title: release.name,
+      body: release.body ?? null,
       draft: release.draft,
       prerelease: release.prerelease
+    };
+  }
+  static _toPullRequestReference(pullRequests) {
+    const pullRequest = pullRequests[0];
+    if (pullRequest === void 0) {
+      return null;
+    }
+    return {
+      number: pullRequest.number,
+      url: pullRequest.html_url
     };
   }
   _octokit;
@@ -34887,14 +34899,18 @@ class OctokitGitHubClient {
       head: `${request.repository.owner}:${request.headBranch}`,
       per_page: 1
     });
-    const pullRequest = response.data[0];
-    if (pullRequest === void 0) {
-      return null;
-    }
-    return {
-      number: pullRequest.number,
-      url: pullRequest.html_url
-    };
+    return OctokitGitHubClient._toPullRequestReference(response.data);
+  }
+  async findPullRequest(request) {
+    const response = await this._octokit.rest.pulls.list({
+      owner: request.repository.owner,
+      repo: request.repository.name,
+      state: "all",
+      base: request.baseBranch,
+      head: `${request.repository.owner}:${request.headBranch}`,
+      per_page: 1
+    });
+    return OctokitGitHubClient._toPullRequestReference(response.data);
   }
   async createRelease(request) {
     const baseParameters = {
@@ -35260,33 +35276,17 @@ class ReleasePreparationPolicy {
   constructor(releaseTag) {
     this._releaseTag = releaseTag;
   }
-  get isPrerelease() {
-    return this._releaseTag.version.isPrerelease;
-  }
   get persistentReleaseBranch() {
     return `release/${this._releaseTag.targetTagName}`;
   }
   get workingBranch() {
-    if (this.isPrerelease) {
-      return `automation/prerelease/${this._releaseTag.tagName}`;
-    }
-    return this.persistentReleaseBranch;
+    return `prerelease/${this._releaseTag.tagName}`;
   }
   get pullRequestTitle() {
-    const titlePrefix = this.isPrerelease ? "prerelease" : "release";
-    return `${titlePrefix}: ${this._releaseTag.releaseLabel}`;
+    return `release: ${this._releaseTag.releaseLabel}`;
   }
-  get ignoredTagPattern() {
-    if (this.isPrerelease) {
-      return null;
-    }
-    return this._releaseTag.prereleaseTagPattern;
-  }
-  resolvePullRequestBaseBranch(stableBaseBranch) {
-    if (this.isPrerelease) {
-      return this.persistentReleaseBranch;
-    }
-    return stableBaseBranch;
+  get pullRequestBaseBranch() {
+    return this.persistentReleaseBranch;
   }
 }
 
@@ -35294,13 +35294,6 @@ class MissingChangelogVersionHeadingError extends Error {
   constructor(changelogPath) {
     super(`Changelog '${changelogPath}' does not contain a version heading.`);
     this.name = "MissingChangelogVersionHeadingError";
-  }
-}
-
-class ReleaseTagOutsideBranchHistoryError extends Error {
-  constructor(tagName, branchName) {
-    super(`Release tag '${tagName}' is not descended from release branch '${branchName}'.`);
-    this.name = "ReleaseTagOutsideBranchHistoryError";
   }
 }
 
@@ -35327,14 +35320,14 @@ class PrepareRelease {
   }
   _fileSystem;
   _gitCliffClient;
-  _gitHubClient;
   _gitRepository;
+  _releasePullRequestCreator;
   _workingDirectory;
-  constructor(fileSystem, gitCliffClient, gitHubClient, gitRepository, workingDirectory) {
+  constructor(fileSystem, gitCliffClient, gitRepository, releasePullRequestCreator, workingDirectory) {
     this._fileSystem = fileSystem;
     this._gitCliffClient = gitCliffClient;
-    this._gitHubClient = gitHubClient;
     this._gitRepository = gitRepository;
+    this._releasePullRequestCreator = releasePullRequestCreator;
     this._workingDirectory = workingDirectory;
   }
   async _createPreparationBranch(releaseContext, preparationPolicy) {
@@ -35343,23 +35336,7 @@ class PrepareRelease {
       PrepareRelease._remoteName,
       preparationPolicy.persistentReleaseBranch
     );
-    if (persistentBranchExists) {
-      await this._gitRepository.fetchRemoteBranch(
-        PrepareRelease._remoteName,
-        preparationPolicy.persistentReleaseBranch
-      );
-      const persistentBranchRevision = `${PrepareRelease._remoteName}/${preparationPolicy.persistentReleaseBranch}`;
-      const tagDescendsFromPersistentBranch = await this._gitRepository.isAncestor(
-        persistentBranchRevision,
-        tagRevision
-      );
-      if (!tagDescendsFromPersistentBranch) {
-        throw new ReleaseTagOutsideBranchHistoryError(
-          releaseContext.tagName,
-          preparationPolicy.persistentReleaseBranch
-        );
-      }
-    } else if (preparationPolicy.isPrerelease) {
+    if (!persistentBranchExists) {
       const tagCommitHash = await this._gitRepository.resolveCommit(tagRevision);
       await this._gitRepository.pushRevisionAsBranch(
         PrepareRelease._remoteName,
@@ -35369,20 +35346,19 @@ class PrepareRelease {
     }
     await this._gitRepository.createBranch(preparationPolicy.workingBranch, tagRevision);
   }
-  async _generateLatestChangelogSection(request, releaseContext, preparationPolicy) {
+  async _generateLatestChangelogSection(request, releaseContext) {
     return this._gitCliffClient.generate({
       workingDirectory: this._workingDirectory,
       configurationPath: request.changelogConfigurationPath,
       tagPattern: releaseContext.tagPattern,
       ...releaseContext.includePath === null ? {} : { includePath: releaseContext.includePath },
-      ...preparationPolicy.ignoredTagPattern === null ? {} : { ignoredTagPattern: preparationPolicy.ignoredTagPattern },
       latest: true,
       verbose: true,
       strip: ChangelogStrip.ALL,
       environment: request.gitCliffEnvironment
     });
   }
-  async _updateChangelog(request, releaseContext, preparationPolicy, changelogSection) {
+  async _updateChangelog(request, releaseContext, changelogSection) {
     const changelogFilePath = node_path.resolve(this._workingDirectory, releaseContext.changelogPath);
     if (await this._fileSystem.exists(changelogFilePath)) {
       const existingContent = await this._fileSystem.readTextFile(changelogFilePath);
@@ -35394,17 +35370,12 @@ class PrepareRelease {
       await this._fileSystem.writeTextFile(changelogFilePath, mergedContent);
       return;
     }
-    const tagCommitHash = await this._gitRepository.resolveCommit(
-      `refs/tags/${releaseContext.tagName}`
-    );
     const changelogContent = await this._gitCliffClient.generate({
       workingDirectory: this._workingDirectory,
       configurationPath: request.changelogConfigurationPath,
       tagPattern: releaseContext.tagPattern,
       ...releaseContext.includePath === null ? {} : { includePath: releaseContext.includePath },
-      ...preparationPolicy.ignoredTagPattern === null ? {} : { ignoredTagPattern: preparationPolicy.ignoredTagPattern },
-      revision: tagCommitHash,
-      latest: false,
+      latest: true,
       verbose: true,
       environment: request.gitCliffEnvironment
     });
@@ -35417,19 +35388,18 @@ class PrepareRelease {
     const preparationPolicy = new ReleasePreparationPolicy(releaseTag);
     await this._gitRepository.configureAuthor(request.author);
     await this._createPreparationBranch(releaseContext, preparationPolicy);
-    const pullRequestBaseBranch = preparationPolicy.resolvePullRequestBaseBranch(request.baseBranch);
     const changelogSection = await this._generateLatestChangelogSection(
       request,
-      releaseContext,
-      preparationPolicy
+      releaseContext
     );
-    await this._updateChangelog(request, releaseContext, preparationPolicy, changelogSection);
+    const pullRequestBaseBranch = preparationPolicy.pullRequestBaseBranch;
+    await this._updateChangelog(request, releaseContext, changelogSection);
     await this._gitRepository.stagePaths([releaseContext.changelogPath]);
     await this._gitRepository.commit(preparationPolicy.pullRequestTitle);
     await this._gitRepository.pushBranch(PrepareRelease._remoteName, preparationPolicy.workingBranch);
-    const pullRequest = await this._gitHubClient.createPullRequest({
+    const pullRequest = await this._releasePullRequestCreator.create({
       repository: request.repository,
-      title: preparationPolicy.pullRequestTitle,
+      releaseTag,
       body: PrepareRelease._removeSectionHeading(changelogSection),
       baseBranch: pullRequestBaseBranch,
       headBranch: preparationPolicy.workingBranch
@@ -35443,6 +35413,34 @@ class PrepareRelease {
       pullRequestBaseBranch,
       pullRequest
     };
+  }
+}
+
+class ReleasePullRequestCreator {
+  static _titlePrefix = "release: ";
+  _gitHubClient;
+  constructor(gitHubClient) {
+    this._gitHubClient = gitHubClient;
+  }
+  async create(request) {
+    return this._gitHubClient.createPullRequest({
+      repository: request.repository,
+      title: `${ReleasePullRequestCreator._titlePrefix}${request.releaseTag.releaseLabel}`,
+      body: request.body,
+      baseBranch: request.baseBranch,
+      headBranch: request.headBranch
+    });
+  }
+  async createOrReuse(request) {
+    const existingPullRequest = await this._gitHubClient.findPullRequest({
+      repository: request.repository,
+      baseBranch: request.baseBranch,
+      headBranch: request.headBranch
+    });
+    if (existingPullRequest !== null) {
+      return existingPullRequest;
+    }
+    return this.create(request);
   }
 }
 
@@ -35497,10 +35495,10 @@ class PrepareReleaseAction {
       };
       const workingDirectory = getInput("working-directory", { required: true });
       const commandRunner = new ActionCommandRunner();
+      const gitHubClient = new OctokitGitHubClient(accessToken);
       const request = {
         tagName: getInput("tag-name", { required: true }),
         repository,
-        baseBranch: getInput("base-branch", { required: true }),
         author: PrepareReleaseAction._readAuthor(),
         packageWorkspaces: PrepareReleaseAction._parsePackageWorkspaces(
           getInput("packages", { required: true })
@@ -35514,8 +35512,8 @@ class PrepareReleaseAction {
       const prepareRelease = new PrepareRelease(
         new NodeFileSystem(),
         new CommandGitCliffClient(commandRunner),
-        new OctokitGitHubClient(accessToken),
         new CommandGitRepository(commandRunner, workingDirectory),
+        new ReleasePullRequestCreator(gitHubClient),
         workingDirectory
       );
       const result = await prepareRelease.execute(request);

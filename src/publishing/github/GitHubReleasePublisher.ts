@@ -5,9 +5,23 @@ import type { ReleaseTag } from '../../release/ReleaseTag';
 import type { GitHubReleasePublication } from './GitHubReleasePublication';
 import type { GitHubReleaseReference } from '../../github/GitHubReleaseReference';
 import { GitHubReleaseLatestPolicy } from '../../github/enums/GitHubReleaseLatestPolicy';
+import { ConflictingGitHubReleaseError } from './exceptions/ConflictingGitHubReleaseError';
+import { ReleaseTagOutsidePublishedBranchError } from './exceptions/ReleaseTagOutsidePublishedBranchError';
 
 
 export class GitHubReleasePublisher {
+    private static _releaseMatches(
+        releaseReference: GitHubReleaseReference,
+        releaseTag: ReleaseTag,
+        releaseBody: string,
+    ): boolean {
+        return releaseReference.tagName === releaseTag.tagName
+            && releaseReference.title === releaseTag.releaseTitle
+            && (releaseReference.body ?? '') === releaseBody
+            && !releaseReference.draft
+            && releaseReference.prerelease === releaseTag.version.isPrerelease;
+    }
+
     private readonly _gitRepository: GitRepository;
     private readonly _gitHubClient: GitHubClient;
 
@@ -22,7 +36,27 @@ export class GitHubReleasePublisher {
         releaseBody: string,
     ): Promise<GitHubReleasePublication> {
         const tagCommitHash: string = await this._gitRepository.resolveCommit(`refs/tags/${releaseTag.tagName}`);
-        const releaseDate: Date = await this._gitRepository.getCommitDate(tagCommitHash);
+        const tagBelongsToPublishedBranch: boolean = await this._gitRepository.isAncestor(tagCommitHash, 'HEAD');
+
+        if (!tagBelongsToPublishedBranch) {
+            throw new ReleaseTagOutsidePublishedBranchError(releaseTag.tagName);
+        }
+
+        const existingRelease: GitHubReleaseReference | null = await this._gitHubClient.getReleaseByTag(
+            repository,
+            releaseTag.tagName,
+        );
+
+        if (existingRelease !== null) {
+            if (!GitHubReleasePublisher._releaseMatches(existingRelease, releaseTag, releaseBody)) {
+                throw new ConflictingGitHubReleaseError(releaseTag.tagName);
+            }
+
+            return {
+                created: false,
+                reference: existingRelease,
+            };
+        }
 
         const releaseReference: GitHubReleaseReference = await this._gitHubClient.createRelease({
             repository,
@@ -30,12 +64,14 @@ export class GitHubReleasePublisher {
             title: releaseTag.releaseTitle,
             body: releaseBody,
             draft: false,
-            prerelease: false,
-            makeLatest: GitHubReleaseLatestPolicy.AUTOMATIC,
+            prerelease: releaseTag.version.isPrerelease,
+            makeLatest: releaseTag.version.isPrerelease
+                ? GitHubReleaseLatestPolicy.NOT_LATEST
+                : GitHubReleaseLatestPolicy.AUTOMATIC,
         });
 
         return {
-            releaseAt: releaseDate.toISOString(),
+            created: true,
             reference: releaseReference,
         };
     }

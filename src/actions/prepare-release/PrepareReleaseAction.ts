@@ -13,6 +13,7 @@ import type { PrepareReleaseRequest } from '../../preparation/PrepareReleaseRequ
 import type { PrepareReleaseResult } from '../../preparation/PrepareReleaseResult';
 import { PackageWorkspaceCatalog } from '../../release/PackageWorkspaceCatalog';
 import type { PackageWorkspaceRecord } from '../../release/PackageWorkspaceCatalog';
+import { ReleasePullRequestCreator } from '../../release/pull-request/ReleasePullRequestCreator';
 import { InvalidPackageWorkspacesError } from './exceptions/InvalidPackageWorkspacesError';
 
 
@@ -75,11 +76,11 @@ export class PrepareReleaseAction {
 
             const workingDirectory: string = core.getInput('working-directory', { required: true });
             const commandRunner: ActionCommandRunner = new ActionCommandRunner();
+            const gitHubClient: OctokitGitHubClient = new OctokitGitHubClient(accessToken);
 
             const request: PrepareReleaseRequest = {
                 tagName: core.getInput('tag-name', { required: true }),
                 repository,
-                baseBranch: core.getInput('base-branch', { required: true }),
                 author: PrepareReleaseAction._readAuthor(),
                 packageWorkspaces: PrepareReleaseAction._parsePackageWorkspaces(
                     core.getInput('packages', { required: true }),
@@ -94,8 +95,8 @@ export class PrepareReleaseAction {
             const prepareRelease: PrepareRelease = new PrepareRelease(
                 new NodeFileSystem(),
                 new CommandGitCliffClient(commandRunner),
-                new OctokitGitHubClient(accessToken),
                 new CommandGitRepository(commandRunner, workingDirectory),
+                new ReleasePullRequestCreator(gitHubClient),
                 workingDirectory,
             );
 

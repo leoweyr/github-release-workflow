@@ -34,8 +34,25 @@ export class OctokitGitHubClient implements GitHubClient {
             identifier: release.id,
             url: release.html_url,
             tagName: release.tag_name,
+            title: release.name,
+            body: release.body ?? null,
             draft: release.draft,
             prerelease: release.prerelease,
+        };
+    }
+
+    private static _toPullRequestReference(
+        pullRequests: readonly PullRequestData[],
+    ): PullRequestReference | null {
+        const pullRequest: PullRequestData | undefined = pullRequests[0];
+
+        if (pullRequest === undefined) {
+            return null;
+        }
+
+        return {
+            number: pullRequest.number,
+            url: pullRequest.html_url,
         };
     }
 
@@ -71,16 +88,20 @@ export class OctokitGitHubClient implements GitHubClient {
             per_page: 1,
         });
 
-        const pullRequest: (typeof response.data)[number] | undefined = response.data[0];
+        return OctokitGitHubClient._toPullRequestReference(response.data);
+    }
 
-        if (pullRequest === undefined) {
-            return null;
-        }
+    public async findPullRequest(request: PullRequestSearchRequest): Promise<PullRequestReference | null> {
+        const response: OctokitResponse<readonly PullRequestData[]> = await this._octokit.rest.pulls.list({
+            owner: request.repository.owner,
+            repo: request.repository.name,
+            state: 'all',
+            base: request.baseBranch,
+            head: `${request.repository.owner}:${request.headBranch}`,
+            per_page: 1,
+        });
 
-        return {
-            number: pullRequest.number,
-            url: pullRequest.html_url,
-        };
+        return OctokitGitHubClient._toPullRequestReference(response.data);
     }
 
     public async createRelease(request: GitHubReleaseCreationRequest): Promise<GitHubReleaseReference> {

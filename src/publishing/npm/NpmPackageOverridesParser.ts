@@ -4,6 +4,7 @@ import type { NpmPackageOverride } from './NpmPackageOverride';
 
 export class NpmPackageOverridesParser {
     private static readonly _deployCommandProperty: string = 'npm-deploy-command';
+    private static readonly _distTagProperty: string = 'npm-dist-tag';
     private static readonly _nodeVersionProperty: string = 'npm-node-version';
     private static readonly _packageDirectoryProperty: string = 'npm-package-dir';
 
@@ -54,10 +55,17 @@ export class NpmPackageOverridesParser {
             packageName,
         );
 
+        const distTag: string | undefined = NpmPackageOverridesParser._readOptionalString(
+            value,
+            NpmPackageOverridesParser._distTagProperty,
+            packageName,
+        );
+
         return {
             ...(nodeVersion === undefined ? {} : { nodeVersion }),
             ...(packageDirectory === undefined ? {} : { packageDirectory }),
             ...(deployCommand === undefined ? {} : { deployCommand }),
+            ...(distTag === undefined ? {} : { distTag }),
         };
     }
 

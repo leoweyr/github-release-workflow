@@ -46,6 +46,13 @@ export class BumpTrbProjectNodeVersionAction {
                 return;
             }
 
+            const isPrerelease: boolean = core.getBooleanInput('prerelease', { required: true });
+            if (isPrerelease) {
+                core.info('TRB prerelease publishing is disabled. The operation is skipped.');
+
+                return;
+            }
+
             const accessToken: string = core.getInput('access-token', { required: true });
 
             core.setSecret(accessToken);

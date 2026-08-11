@@ -22,6 +22,40 @@ const actionBundleConfigurations = [
         },
     },
     {
+        input: 'src/actions/route-release/index.ts',
+        plugins: [
+            nodeResolve({
+                preferBuiltins: true,
+            }),
+            commonjs(),
+            esbuild({
+                target: 'node24',
+            }),
+        ],
+        output: {
+            file: '.github/actions/route-release/dist/index.cjs',
+            format: 'cjs',
+            exports: 'auto',
+        },
+    },
+    {
+        input: 'src/actions/resolve-release/index.ts',
+        plugins: [
+            nodeResolve({
+                preferBuiltins: true,
+            }),
+            commonjs(),
+            esbuild({
+                target: 'node24',
+            }),
+        ],
+        output: {
+            file: '.github/actions/resolve-release/dist/index.cjs',
+            format: 'cjs',
+            exports: 'auto',
+        },
+    },
+    {
         input: 'src/actions/publish-github-release/index.ts',
         plugins: [
             nodeResolve({

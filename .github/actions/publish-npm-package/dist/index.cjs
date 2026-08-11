@@ -29435,6 +29435,7 @@ class InvalidNpmPackageOverridesError extends Error {
 
 class NpmPackageOverridesParser {
   static _deployCommandProperty = "npm-deploy-command";
+  static _distTagProperty = "npm-dist-tag";
   static _nodeVersionProperty = "npm-node-version";
   static _packageDirectoryProperty = "npm-package-dir";
   static _isRecord(value) {
@@ -29471,10 +29472,16 @@ class NpmPackageOverridesParser {
       NpmPackageOverridesParser._deployCommandProperty,
       packageName
     );
+    const distTag = NpmPackageOverridesParser._readOptionalString(
+      value,
+      NpmPackageOverridesParser._distTagProperty,
+      packageName
+    );
     return {
       ...nodeVersion === void 0 ? {} : { nodeVersion },
       ...packageDirectory === void 0 ? {} : { packageDirectory },
-      ...deployCommand === void 0 ? {} : { deployCommand }
+      ...deployCommand === void 0 ? {} : { deployCommand },
+      ...distTag === void 0 ? {} : { distTag }
     };
   }
   static parse(serializedOverrides) {
@@ -29518,7 +29525,7 @@ class NpmPackagePublisher {
     this._commandRunner = commandRunner;
     this._fileSystem = fileSystem;
   }
-  async publish(workingDirectory, packageDirectoryValue, deployCommand, accessToken) {
+  async publish(workingDirectory, packageDirectoryValue, deployCommand, distTag, accessToken) {
     const packageDirectory = node_path.resolve(workingDirectory, packageDirectoryValue);
     const packageFilePath = node_path.resolve(packageDirectory, "package.json");
     if (!await this._fileSystem.exists(packageFilePath)) {
@@ -29530,7 +29537,8 @@ class NpmPackagePublisher {
     await this._commandRunner.execute("bash", ["-e", "-o", "pipefail", "-c", deployCommand], {
       workingDirectory: packageDirectory,
       environment: {
-        NODE_AUTH_TOKEN: accessToken
+        NODE_AUTH_TOKEN: accessToken,
+        NPM_CONFIG_TAG: distTag
       }
     });
     return packageDirectory;
@@ -29581,6 +29589,7 @@ class NpmPublishConfiguration {
     NpmPublishConfiguration._assertNotEmpty("nodeVersion", settings.nodeVersion);
     NpmPublishConfiguration._assertNotEmpty("packageDirectory", settings.packageDirectory);
     NpmPublishConfiguration._assertNotEmpty("deployCommand", settings.deployCommand);
+    NpmPublishConfiguration._assertNotEmpty("distTag", settings.distTag);
     return { ...settings };
   }
   static _assertNotEmpty(propertyName, value) {
@@ -29625,23 +29634,106 @@ class NpmPublishConfiguration {
       deployCommand: NpmPublishConfiguration._useOverride(
         packageOverride.deployCommand,
         this._defaults.deployCommand
-      )
+      ),
+      distTag: NpmPublishConfiguration._useOverride(packageOverride.distTag, this._defaults.distTag)
     };
     return resolvedSettings;
+  }
+}
+
+class InvalidSemanticVersionError extends Error {
+  constructor(version) {
+    super(`The version '${version}' is not a valid semantic version.`);
+    this.name = "InvalidSemanticVersionError";
+  }
+}
+
+class SemanticVersion {
+  static _semanticVersionPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/u;
+  static _readRequiredCapture(versionMatch, index, version) {
+    const value = versionMatch[index];
+    if (value === void 0) {
+      throw new InvalidSemanticVersionError(version);
+    }
+    return value;
+  }
+  static _readOptionalIdentifiers(versionMatch, index) {
+    const value = versionMatch[index];
+    const identifiers = value === void 0 ? [] : value.split(".");
+    return Object.freeze(identifiers);
+  }
+  static parse(version) {
+    const versionMatch = SemanticVersion._semanticVersionPattern.exec(version);
+    if (versionMatch === null || versionMatch[0] !== version) {
+      throw new InvalidSemanticVersionError(version);
+    }
+    return new SemanticVersion(version, versionMatch);
+  }
+  _value;
+  _major;
+  _minor;
+  _patch;
+  _prereleaseIdentifiers;
+  _buildMetadataIdentifiers;
+  constructor(version, versionMatch) {
+    this._value = version;
+    this._major = BigInt(SemanticVersion._readRequiredCapture(versionMatch, 1, version));
+    this._minor = BigInt(SemanticVersion._readRequiredCapture(versionMatch, 2, version));
+    this._patch = BigInt(SemanticVersion._readRequiredCapture(versionMatch, 3, version));
+    this._prereleaseIdentifiers = SemanticVersion._readOptionalIdentifiers(versionMatch, 4);
+    this._buildMetadataIdentifiers = SemanticVersion._readOptionalIdentifiers(versionMatch, 5);
+  }
+  get value() {
+    return this._value;
+  }
+  get versionTag() {
+    return `v${this._value}`;
+  }
+  get stableValue() {
+    return `${this._major}.${this._minor}.${this._patch}`;
+  }
+  get stableVersionTag() {
+    return `v${this.stableValue}`;
+  }
+  get major() {
+    return this._major;
+  }
+  get minor() {
+    return this._minor;
+  }
+  get patch() {
+    return this._patch;
+  }
+  get prereleaseIdentifiers() {
+    return this._prereleaseIdentifiers;
+  }
+  get buildMetadataIdentifiers() {
+    return this._buildMetadataIdentifiers;
+  }
+  get isPrerelease() {
+    return this._prereleaseIdentifiers.length > 0;
+  }
+  equals(otherVersion) {
+    return this._value === otherVersion.value;
   }
 }
 
 class PublishNpmPackageAction {
   static _accessTokenEnvironment = "NPM_PUBLISH_ACCESS_TOKEN";
   static _deployCommandEnvironment = "NPM_PUBLISH_DEPLOY_COMMAND";
+  static _distTagEnvironment = "NPM_PUBLISH_DIST_TAG";
   static _nodeVersionEnvironment = "NPM_PUBLISH_NODE_VERSION";
   static _packageDirectoryEnvironment = "NPM_PUBLISH_PACKAGE_DIRECTORY";
   static _packageNameEnvironment = "NPM_PUBLISH_PACKAGE_NAME";
   static _packageOverridesEnvironment = "NPM_PUBLISH_PACKAGE_OVERRIDES";
+  static _releaseVersionEnvironment = "NPM_PUBLISH_RELEASE_VERSION";
   static _workingDirectoryEnvironment = "NPM_PUBLISH_WORKING_DIRECTORY";
   static _createConfiguration() {
     const packageOverrides = NpmPackageOverridesParser.parse(
       PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._packageOverridesEnvironment)
+    );
+    const releaseVersion = SemanticVersion.parse(
+      PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._releaseVersionEnvironment)
     );
     return new NpmPublishConfiguration(
       {
@@ -29653,7 +29745,8 @@ class PublishNpmPackageAction {
         ),
         deployCommand: PublishNpmPackageAction._readEnvironment(
           PublishNpmPackageAction._deployCommandEnvironment
-        )
+        ),
+        distTag: releaseVersion.isPrerelease ? "next" : "latest"
       },
       packageOverrides
     );
@@ -29677,6 +29770,7 @@ class PublishNpmPackageAction {
     setOutput("node-version", settings.nodeVersion);
     setOutput("package-dir", settings.packageDirectory);
     setOutput("deploy-command", settings.deployCommand);
+    setOutput("dist-tag", settings.distTag);
   }
   static async _publish(commandRunner, fileSystem) {
     const accessToken = PublishNpmPackageAction._readEnvironment(
@@ -29688,6 +29782,7 @@ class PublishNpmPackageAction {
       PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._workingDirectoryEnvironment),
       PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._packageDirectoryEnvironment),
       PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._deployCommandEnvironment),
+      PublishNpmPackageAction._readEnvironment(PublishNpmPackageAction._distTagEnvironment),
       accessToken
     );
     info(`Published the NPM package from '${packageDirectory}'.`);

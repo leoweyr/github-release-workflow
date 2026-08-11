@@ -10,12 +10,6 @@ on:
         type: string
         default: '20'
 
-      base-branch:
-        description: 'Base branch name for release pull requests.'
-        required: false
-        type: string
-        default: 'master'
-
       commit-user-name:
         description: 'Git user name for commit'
         required: false
@@ -74,7 +68,6 @@ jobs:
         with:
           access-token: ${{ secrets.ACCESS_TOKEN }}
           tag-name: ${{ github.ref_name }}
-          base-branch: ${{ inputs.base-branch }}
           commit-user-name: ${{ inputs.commit-user-name }}
           commit-user-email: ${{ inputs.commit-user-email }}
           packages: ${{ inputs.packages }}

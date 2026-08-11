@@ -28,6 +28,10 @@ inputs:
     required: false
     default: ''
 
+  release-version:
+    description: 'Release version without the v prefix.'
+    required: true
+
   package-overrides:
     description: 'JSON object mapping mono-repo sub-package to its specific inputs.'
     required: false
@@ -62,6 +66,7 @@ runs:
         NPM_PUBLISH_DEPLOY_COMMAND: ${{ inputs.deploy-command }}
         NPM_PUBLISH_PACKAGE_NAME: ${{ inputs.package-name }}
         NPM_PUBLISH_PACKAGE_OVERRIDES: ${{ inputs.package-overrides }}
+        NPM_PUBLISH_RELEASE_VERSION: ${{ inputs.release-version }}
       run: '"${{ steps.resolve_action_runtime.outputs.node-command }}" "$GITHUB_ACTION_PATH/dist/index.cjs" prepare'
 
     - name: 📦 Install Node.js
@@ -78,5 +83,6 @@ runs:
         NPM_PUBLISH_ACCESS_TOKEN: ${{ inputs.access-token }}
         NPM_PUBLISH_PACKAGE_DIRECTORY: ${{ steps.prepare.outputs.package-dir }}
         NPM_PUBLISH_DEPLOY_COMMAND: ${{ steps.prepare.outputs.deploy-command }}
+        NPM_PUBLISH_DIST_TAG: ${{ steps.prepare.outputs.dist-tag }}
         NPM_PUBLISH_WORKING_DIRECTORY: ${{ inputs.working-directory }}
       run: '"${{ steps.resolve_action_runtime.outputs.node-command }}" "$GITHUB_ACTION_PATH/dist/index.cjs" publish'

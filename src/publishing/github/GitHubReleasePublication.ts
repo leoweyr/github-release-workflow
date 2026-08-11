@@ -2,6 +2,6 @@ import type { GitHubReleaseReference } from '../../github/GitHubReleaseReference
 
 
 export interface GitHubReleasePublication {
-    readonly releaseAt: string;
+    readonly created: boolean;
     readonly reference: GitHubReleaseReference;
 }

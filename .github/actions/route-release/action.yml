@@ -1,0 +1,39 @@
+name: 'Route Release'
+description: 'Route a merged release pull request to publication or stable promotion.'
+
+
+inputs:
+  access-token:
+    description: 'GitHub token used to create the promotion pull request.'
+    required: true
+
+  pull-request-title:
+    description: 'Merged release pull request title.'
+    required: true
+
+  pull-request-body:
+    description: 'Release notes copied from the merged release pull request.'
+    required: false
+    default: ''
+
+  base-branch:
+    description: 'Branch targeted by the merged release pull request.'
+    required: true
+
+  head-branch:
+    description: 'Source branch of the merged release pull request.'
+    required: true
+
+  main-branch:
+    description: 'Main branch targeted by stable release pull requests.'
+    required: true
+
+
+outputs:
+  publish-release:
+    description: 'Whether the merged pull request must publish a release.'
+
+
+runs:
+  using: 'node24'
+  main: 'dist/index.cjs'
