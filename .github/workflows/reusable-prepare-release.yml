@@ -4,7 +4,7 @@ name: Prepare Release
 on:
   workflow_call:
     inputs:
-      node-verions:
+      node-version:
         description: 'Node.js version to use.'
         required: false
         type: string
@@ -61,7 +61,7 @@ jobs:
       - name: 📦 Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ inputs.node-verions }}
+          node-version: ${{ inputs.node-version }}
 
       - name: 🧰 Prepare Release
         uses: ./.release-workflow/.github/actions/prepare-release

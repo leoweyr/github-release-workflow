@@ -18,6 +18,12 @@ Add professional release automation to your personal project with a single step:
 
 ✨ That's it! Your repository is now enchanted.
 
+## ⚠ Breaking Change
+
+| Migration Guide                               |
+|-----------------------------------------------|
+| [v1 to v2](docs/migrations/v1-to-v2-guide.md) |
+
 ## ⚙ How It Works
 
 ![Release Flow](docs/release-flow.png)

@@ -1,7 +1,7 @@
 {
     "name": "github-release-workflow",
     "private": true,
-    "version": "1.4.1",
+    "version": "2.0.0",
     "description": "Streamline your software delivery with a production-ready engineering workflow. Automated semantic versioning, changelog generation (via git-cliff), and aggregated release publishing across GitHub and major package registries.",
     "bugs": "https://github.com/leoweyr/github-release-workflow/issues",
     "type": "module",
