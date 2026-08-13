@@ -7,5 +7,6 @@ export interface RouteReleaseRequest {
     readonly pullRequestBody: string;
     readonly baseBranch: string;
     readonly headBranch: string;
+    readonly headRevision: string;
     readonly mainBranch: string;
 }

@@ -40,10 +40,12 @@ export class RouteReleaseAction {
                 pullRequestBody: core.getInput('pull-request-body', { trimWhitespace: false }),
                 baseBranch: core.getInput('base-branch', { required: true }),
                 headBranch: core.getInput('head-branch', { required: true }),
+                headRevision: core.getInput('head-revision', { required: true }),
                 mainBranch: core.getInput('main-branch', { required: true }),
             });
 
             core.setOutput('publish-release', result.publishRelease);
+            core.setOutput('release-history-revision', result.releaseHistoryRevision ?? '');
 
             if (result.promotionPullRequest !== null) {
                 core.info(`Stable release promotion pull request: ${result.promotionPullRequest.url}`);

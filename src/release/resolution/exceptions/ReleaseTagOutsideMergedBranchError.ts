@@ -1,6 +1,6 @@
 export class ReleaseTagOutsideMergedBranchError extends Error {
     public constructor(tagName: string) {
-        super(`Release tag '${tagName}' is not part of the merged pull request base branch.`);
+        super(`Release tag '${tagName}' is not part of the validated release history.`);
 
         this.name = 'ReleaseTagOutsideMergedBranchError';
     }

@@ -24,6 +24,10 @@ inputs:
     description: 'Source branch of the merged release pull request.'
     required: true
 
+  head-revision:
+    description: 'Commit SHA at the head of the merged release pull request.'
+    required: true
+
   main-branch:
     description: 'Main branch targeted by stable release pull requests.'
     required: true
@@ -32,6 +36,8 @@ inputs:
 outputs:
   publish-release:
     description: 'Whether the merged pull request must publish a release.'
+  release-history-revision:
+    description: 'Git revision whose history must contain the release tag.'
 
 
 runs:

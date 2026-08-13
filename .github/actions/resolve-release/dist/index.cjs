@@ -29668,7 +29668,7 @@ class InvalidReleasePullRequestTitleError extends Error {
 
 class ReleaseTagOutsideMergedBranchError extends Error {
   constructor(tagName) {
-    super(`Release tag '${tagName}' is not part of the merged pull request base branch.`);
+    super(`Release tag '${tagName}' is not part of the validated release history.`);
     this.name = "ReleaseTagOutsideMergedBranchError";
   }
 }
@@ -29691,8 +29691,8 @@ class ReleaseMetadataResolver {
   async resolve(pullRequestTitle) {
     const releaseTag = ReleaseMetadataResolver._parseReleaseTag(pullRequestTitle);
     const tagCommitHash = await this._gitRepository.resolveCommit(`refs/tags/${releaseTag.tagName}`);
-    const tagBelongsToMergedBranch = await this._gitRepository.isAncestor(tagCommitHash, "HEAD");
-    if (!tagBelongsToMergedBranch) {
+    const tagBelongsToReleaseHistory = await this._gitRepository.isAncestor(tagCommitHash, "HEAD");
+    if (!tagBelongsToReleaseHistory) {
       throw new ReleaseTagOutsideMergedBranchError(releaseTag.tagName);
     }
     const releaseDate = await this._gitRepository.getCommitDate(tagCommitHash);

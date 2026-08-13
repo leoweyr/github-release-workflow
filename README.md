@@ -7,6 +7,8 @@
 > To ensure changelogs are generated correctly, all git commit messages must follow the **[Conventional Commits](https://www.conventionalcommits.org/)** specification.
 >
 > Also, you must go to your repository **Settings > Actions > General > Workflow permissions** and enable **"Allow GitHub Actions to create and approve pull requests"**, otherwise the automated release process will fail.
+>
+> Every Pull Request from a `prerelease/*` branch to its persistent `release/*` branch must be merged using **"Create a merge commit"** instead of **"Squash and merge"** or **"Rebase and merge"**.
 
 ## 🚀 Instant Magic for Your Repository!!!
 

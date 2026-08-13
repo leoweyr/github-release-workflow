@@ -29,9 +29,9 @@ export class ReleaseMetadataResolver {
     public async resolve(pullRequestTitle: string): Promise<ReleaseMetadata> {
         const releaseTag: ReleaseTag = ReleaseMetadataResolver._parseReleaseTag(pullRequestTitle);
         const tagCommitHash: string = await this._gitRepository.resolveCommit(`refs/tags/${releaseTag.tagName}`);
-        const tagBelongsToMergedBranch: boolean = await this._gitRepository.isAncestor(tagCommitHash, 'HEAD');
+        const tagBelongsToReleaseHistory: boolean = await this._gitRepository.isAncestor(tagCommitHash, 'HEAD');
 
-        if (!tagBelongsToMergedBranch) {
+        if (!tagBelongsToReleaseHistory) {
             throw new ReleaseTagOutsideMergedBranchError(releaseTag.tagName);
         }
 

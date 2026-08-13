@@ -36,9 +36,9 @@ export class GitHubReleasePublisher {
         releaseBody: string,
     ): Promise<GitHubReleasePublication> {
         const tagCommitHash: string = await this._gitRepository.resolveCommit(`refs/tags/${releaseTag.tagName}`);
-        const tagBelongsToPublishedBranch: boolean = await this._gitRepository.isAncestor(tagCommitHash, 'HEAD');
+        const tagBelongsToReleaseHistory: boolean = await this._gitRepository.isAncestor(tagCommitHash, 'HEAD');
 
-        if (!tagBelongsToPublishedBranch) {
+        if (!tagBelongsToReleaseHistory) {
             throw new ReleaseTagOutsidePublishedBranchError(releaseTag.tagName);
         }
 

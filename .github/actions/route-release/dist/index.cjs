@@ -34169,6 +34169,7 @@ class RouteRelease {
       if (releaseTag.version.isPrerelease) {
         return {
           publishRelease: true,
+          releaseHistoryRevision: request.baseBranch,
           promotionPullRequest: null
         };
       }
@@ -34180,6 +34181,7 @@ class RouteRelease {
       );
       return {
         publishRelease: false,
+        releaseHistoryRevision: null,
         promotionPullRequest
       };
     }
@@ -34187,6 +34189,7 @@ class RouteRelease {
     if (isStablePublicationPullRequest) {
       return {
         publishRelease: true,
+        releaseHistoryRevision: request.headRevision,
         promotionPullRequest: null
       };
     }
@@ -34230,9 +34233,11 @@ class RouteReleaseAction {
         pullRequestBody: getInput("pull-request-body", { trimWhitespace: false }),
         baseBranch: getInput("base-branch", { required: true }),
         headBranch: getInput("head-branch", { required: true }),
+        headRevision: getInput("head-revision", { required: true }),
         mainBranch: getInput("main-branch", { required: true })
       });
       setOutput("publish-release", result.publishRelease);
+      setOutput("release-history-revision", result.releaseHistoryRevision ?? "");
       if (result.promotionPullRequest !== null) {
         info(`Stable release promotion pull request: ${result.promotionPullRequest.url}`);
         return;
