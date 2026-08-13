@@ -23,7 +23,7 @@ export class ReleasePullRequestCreator {
     }
 
     public async createOrReuse(request: ReleasePullRequestCreationRequest): Promise<PullRequestReference> {
-        const existingPullRequest: PullRequestReference | null = await this._gitHubClient.findPullRequest({
+        const existingPullRequest: PullRequestReference | null = await this._gitHubClient.findOpenPullRequest({
             repository: request.repository,
             baseBranch: request.baseBranch,
             headBranch: request.headBranch,

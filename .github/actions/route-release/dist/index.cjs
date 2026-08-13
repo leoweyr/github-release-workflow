@@ -33932,7 +33932,7 @@ class ReleasePullRequestCreator {
     });
   }
   async createOrReuse(request) {
-    const existingPullRequest = await this._gitHubClient.findPullRequest({
+    const existingPullRequest = await this._gitHubClient.findOpenPullRequest({
       repository: request.repository,
       baseBranch: request.baseBranch,
       headBranch: request.headBranch
