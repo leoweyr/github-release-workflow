@@ -4,8 +4,8 @@ import { context } from '@actions/github';
 import type { GitHubRepositoryReference } from '../../github/GitHubRepositoryReference';
 import { OctokitGitHubClient } from '../../github/OctokitGitHubClient';
 import { ReleasePullRequestCreator } from '../../release/pull-request/ReleasePullRequestCreator';
-import { RouteRelease } from '../../release/release-routing/RouteRelease';
-import type { RouteReleaseResult } from '../../release/release-routing/RouteReleaseResult';
+import { RouteRelease } from '../../release/routing/RouteRelease';
+import type { RouteReleaseResult } from '../../release/routing/RouteReleaseResult';
 
 
 export class RouteReleaseAction {
