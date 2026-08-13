@@ -44,12 +44,12 @@ jobs:
           curl -s "https://abacus.jasoncameron.dev/hit/leoweyr/github-release-workflow-usage" > /dev/null
 
       - name: 📂 Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: 🔄 Sync Release Action
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
@@ -59,9 +59,10 @@ jobs:
             src/cliff.toml
 
       - name: 📦 Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ inputs.node-version }}
+          package-manager-cache: false
 
       - name: 🧰 Prepare Release
         uses: ./.release-workflow/.github/actions/prepare-release

@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: 🔄 Sync Release Routing Action
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
@@ -108,13 +108,13 @@ jobs:
           curl -s "https://abacus.jasoncameron.dev/hit/leoweyr/github-release-workflow-usage" > /dev/null
 
       - name: 📂 Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ needs.route_release.outputs.release_history_revision }}
 
       - name: 🔄 Sync Release Resolution Action
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
@@ -138,13 +138,13 @@ jobs:
 
     steps:
       - name: 📂 Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ needs.route_release.outputs.release_history_revision }}
 
       - name: 🔄 Sync GitHub Release Publication Action
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
@@ -169,12 +169,12 @@ jobs:
 
     steps:
       - name: 📂 Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.base.ref }}
 
       - name: 🔄 Sync NPM Package Publication Action
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
@@ -206,7 +206,7 @@ jobs:
 
     steps:
       - name: 🔄 Sync TRB Project Node Version Bumping Action
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}

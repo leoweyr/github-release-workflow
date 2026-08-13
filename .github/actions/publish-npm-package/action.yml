@@ -47,9 +47,10 @@ runs:
   using: 'composite'
   steps:
     - name: 📦 Install Action Runtime
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '24'
+        package-manager-cache: false
 
     - name: 🔍 Resolve Action Runtime
       id: resolve_action_runtime
@@ -71,9 +72,10 @@ runs:
 
     - name: 📦 Install Node.js
       if: steps.prepare.outputs.enabled == 'true'
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ steps.prepare.outputs.node-version }}
+        package-manager-cache: false
         registry-url: 'https://registry.npmjs.org'
 
     - name: 🚀 Publish NPM Package

@@ -6,12 +6,15 @@ Update both user-side entry workflows before preparing the first v2 release.
 
 In `.github/workflows/prepare-release.yml`:
 
+- Update the reusable workflow reference from `@develop` to `@v2`.
 - Remove `base-branch`.
 - If configured, rename `node-verions` to `node-version`.
 
 ```diff
  jobs:
    call-prepare:
+-    uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@develop
++    uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@v2
      with:
 -      base-branch: 'master'
 -      node-verions: '20'
@@ -26,6 +29,7 @@ Omit the `with` block when no other prepare workflow inputs are configured.
 
 In `.github/workflows/publish-release.yml`:
 
+- Update the reusable workflow reference from `@develop` to `@v2`.
 - Add the `pull-requests: write` permission.
 - Set `main-branch` to `master` or `main`, whichever is the repository's main branch.
 
@@ -36,6 +40,8 @@ In `.github/workflows/publish-release.yml`:
 
  jobs:
    call-publish:
+-    uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@develop
++    uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@v2
 +    with:
 +      main-branch: 'master'
      secrets:
@@ -54,5 +60,6 @@ Set `main-branch` explicitly. Do not use the repository's default branch when it
 
 ## Verify the Migration
 
+- Both reusable workflow references use `@v2`.
 - `prepare-release.yml` does not contain `base-branch` or `node-verions`.
 - `publish-release.yml` grants `pull-requests: write` and sets the correct `main-branch`.

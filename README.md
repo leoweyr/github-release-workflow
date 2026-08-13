@@ -84,7 +84,7 @@ This workflow also releases individual sub-packages inside a mono-repo. Each sub
    
    jobs:
      call-prepare:
-       uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@develop
+       uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@v2
        with:
          packages: |
            {
@@ -102,7 +102,7 @@ This workflow also releases individual sub-packages inside a mono-repo. Each sub
    ```yaml
    jobs:
      call-publish:
-       uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@develop
+       uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@v2
        with:
          package-overrides: |
            {
