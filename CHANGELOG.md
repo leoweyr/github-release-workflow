@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.0.0](https://github.com/leoweyr/github-release-workflow/compare/v1.4.1...v2.0.0) (2026-08-14)
+### Bug Fixes
+
+* allow sqush merges for stable release promotion ([087e1be](https://github.com/leoweyr/github-release-workflow/commit/087e1be479f6809a659ce3954dd65b92427c8537)) [@leoweyr](https://github.com/leoweyr)
+* stop reusing closed release pull requests ([8c7a39e](https://github.com/leoweyr/github-release-workflow/commit/8c7a39ece800bfed27d82f0834e50f56bcb6cac7)) [@leoweyr](https://github.com/leoweyr)
+* pin reusable workflows to the v2.0.0 release tag ([eeaab36](https://github.com/leoweyr/github-release-workflow/commit/eeaab36ddc7ffae7329253771272a05f6e77312a)) [@leoweyr](https://github.com/leoweyr)
+* avoid prerelease branches for direct stable releases ([d43682e](https://github.com/leoweyr/github-release-workflow/commit/d43682e7c972b6cf523095984bed6dab5e837c37)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Features
+
+* prepare prerelease on persistent release branches ([0b8adbe](https://github.com/leoweyr/github-release-workflow/commit/0b8adbeb030924a534ebe4bf89161904be88ef30)) [@leoweyr](https://github.com/leoweyr)
+* support staged prerelease and stable release workflows ([b84a919](https://github.com/leoweyr/github-release-workflow/commit/b84a919f6a187c0238bb468083c69c7193e8050a)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Refactor
+
+* model release policies in TypeScript ([4d25d5b](https://github.com/leoweyr/github-release-workflow/commit/4d25d5bb62dbe5f6ceb07c44e28887e28b24062a)) [@leoweyr](https://github.com/leoweyr)
+* add release infrastructure adapters ([587123b](https://github.com/leoweyr/github-release-workflow/commit/587123b08202707b22cfc40cad77686f13d967b7)) [@leoweyr](https://github.com/leoweyr)
+* migrate release publishing to TypeScript ([6a0dd3c](https://github.com/leoweyr/github-release-workflow/commit/6a0dd3ca2217ccf7abd12230d5f67939c5f64f78)) [@leoweyr](https://github.com/leoweyr)
+* migrate release preparation to TypeScript ([c113705](https://github.com/leoweyr/github-release-workflow/commit/c1137059328d2dac21f296bb425df80aaec39ba5)) [@leoweyr](https://github.com/leoweyr)
+* remove unused action outputs ([5b47923](https://github.com/leoweyr/github-release-workflow/commit/5b479237c5931716039f34fd8cd9eaad2a144871)) [@leoweyr](https://github.com/leoweyr)
+* complete NPM publishing migration to TypeScript ([a4d8c47](https://github.com/leoweyr/github-release-workflow/commit/a4d8c47476598ffc07752edeb7db812696942c79)) [@leoweyr](https://github.com/leoweyr)
+* adopt stable v2 references and Node 24 actions ([962c5c8](https://github.com/leoweyr/github-release-workflow/commit/962c5c8fb7b974361a0657df88815f55b8503146)) [@leoweyr](https://github.com/leoweyr)
+* simplify release routing module structure ([c862cef](https://github.com/leoweyr/github-release-workflow/commit/c862cef73068b2a76d5707cc769dd6d378b7006f)) [@leoweyr](https://github.com/leoweyr)
+
+
+### DevOps
+
+* establish TypeScript action toolchain ([b09b685](https://github.com/leoweyr/github-release-workflow/commit/b09b685d50e017cb870c6410b169ff925e40e191)) [@leoweyr](https://github.com/leoweyr)
+
+
+### Documentation
+
+* add v2 migration ([b82ff4d](https://github.com/leoweyr/github-release-workflow/commit/b82ff4dd231958f9b82e0c08650d430c90c2eb84)) [@leoweyr](https://github.com/leoweyr)
+* correct release flow diagram connections ([8aa14cb](https://github.com/leoweyr/github-release-workflow/commit/8aa14cb76e3a4df3a0861cdabdc2afd4dde310e0)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [1.4.1](https://github.com/leoweyr/github-release-workflow/compare/v1.4.0...v1.4.1) (2026-06-18)
 ### Bug Fixes
 
