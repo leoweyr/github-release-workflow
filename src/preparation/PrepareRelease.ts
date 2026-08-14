@@ -71,12 +71,8 @@ export class PrepareRelease {
         preparationPolicy: ReleasePreparationPolicy,
     ): Promise<void> {
         const tagRevision: string = `refs/tags/${releaseContext.tagName}`;
-        const persistentBranchExists: boolean = await this._gitRepository.remoteBranchExists(
-            PrepareRelease._remoteName,
-            preparationPolicy.persistentReleaseBranch,
-        );
 
-        if (!persistentBranchExists) {
+        if (preparationPolicy.shouldInitializePersistentReleaseBranch) {
             const tagCommitHash: string = await this._gitRepository.resolveCommit(tagRevision);
 
             await this._gitRepository.pushRevisionAsBranch(
@@ -142,7 +138,18 @@ export class PrepareRelease {
     public async execute(request: PrepareReleaseRequest): Promise<PrepareReleaseResult> {
         const releaseTag: ReleaseTag = ReleaseTag.fromTagName(request.tagName);
         const releaseContext: ReleaseContext = ReleaseContext.resolve(releaseTag, request.packageWorkspaces);
-        const preparationPolicy: ReleasePreparationPolicy = new ReleasePreparationPolicy(releaseTag);
+        const persistentReleaseBranch: string = `release/${releaseTag.targetTagName}`;
+
+        const persistentReleaseBranchExists: boolean = await this._gitRepository.remoteBranchExists(
+            PrepareRelease._remoteName,
+            persistentReleaseBranch,
+        );
+
+        const preparationPolicy: ReleasePreparationPolicy = new ReleasePreparationPolicy(
+            releaseTag,
+            request.mainBranch,
+            persistentReleaseBranchExists,
+        );
 
         await this._gitRepository.configureAuthor(request.author);
         await this._createPreparationBranch(releaseContext, preparationPolicy);

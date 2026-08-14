@@ -43,6 +43,7 @@ This workflow streamlines your release process into a few simple steps:
 
 3.  **Automated Magic**: GitHub Actions will automatically:
     *   Generate a changelog based on your conventional commits.
+    *   For a stable release without preceding prereleases, create only `release/<stable-tag>` at the tagged commit and open its Pull Request directly to the main branch.
     *   For the first prerelease, create `release/v<stable-version>` and `prerelease/<tag>` branches at the tagged commit, and open a Pull Request to the persistent release branch.
     *   For later prereleases, create `prerelease/<tag>` branch at the tagged commit, and open a Pull Request to the same persistent release branch.
     *   For the stable release that concludes the prerelease series, merge `prerelease/<stable-tag>` into the persistent release branch and then promote the release branch to the main branch through a second Pull Request.

@@ -35272,21 +35272,37 @@ class ReleaseContext {
 }
 
 class ReleasePreparationPolicy {
+  _mainBranch;
+  _persistentReleaseBranchExists;
   _releaseTag;
-  constructor(releaseTag) {
+  constructor(releaseTag, mainBranch, persistentReleaseBranchExists) {
+    this._mainBranch = mainBranch;
+    this._persistentReleaseBranchExists = persistentReleaseBranchExists;
     this._releaseTag = releaseTag;
+  }
+  get _isDirectStableRelease() {
+    return !this._releaseTag.version.isPrerelease && !this._persistentReleaseBranchExists;
   }
   get persistentReleaseBranch() {
     return `release/${this._releaseTag.targetTagName}`;
   }
   get workingBranch() {
+    if (this._isDirectStableRelease) {
+      return this.persistentReleaseBranch;
+    }
     return `prerelease/${this._releaseTag.tagName}`;
   }
   get pullRequestTitle() {
     return `release: ${this._releaseTag.releaseLabel}`;
   }
   get pullRequestBaseBranch() {
+    if (this._isDirectStableRelease) {
+      return this._mainBranch;
+    }
     return this.persistentReleaseBranch;
+  }
+  get shouldInitializePersistentReleaseBranch() {
+    return !this._persistentReleaseBranchExists && !this._isDirectStableRelease;
   }
 }
 
@@ -35332,11 +35348,7 @@ class PrepareRelease {
   }
   async _createPreparationBranch(releaseContext, preparationPolicy) {
     const tagRevision = `refs/tags/${releaseContext.tagName}`;
-    const persistentBranchExists = await this._gitRepository.remoteBranchExists(
-      PrepareRelease._remoteName,
-      preparationPolicy.persistentReleaseBranch
-    );
-    if (!persistentBranchExists) {
+    if (preparationPolicy.shouldInitializePersistentReleaseBranch) {
       const tagCommitHash = await this._gitRepository.resolveCommit(tagRevision);
       await this._gitRepository.pushRevisionAsBranch(
         PrepareRelease._remoteName,
@@ -35385,7 +35397,16 @@ class PrepareRelease {
   async execute(request) {
     const releaseTag = ReleaseTag.fromTagName(request.tagName);
     const releaseContext = ReleaseContext.resolve(releaseTag, request.packageWorkspaces);
-    const preparationPolicy = new ReleasePreparationPolicy(releaseTag);
+    const persistentReleaseBranch = `release/${releaseTag.targetTagName}`;
+    const persistentReleaseBranchExists = await this._gitRepository.remoteBranchExists(
+      PrepareRelease._remoteName,
+      persistentReleaseBranch
+    );
+    const preparationPolicy = new ReleasePreparationPolicy(
+      releaseTag,
+      request.mainBranch,
+      persistentReleaseBranchExists
+    );
     await this._gitRepository.configureAuthor(request.author);
     await this._createPreparationBranch(releaseContext, preparationPolicy);
     const changelogSection = await this._generateLatestChangelogSection(
@@ -35498,6 +35519,7 @@ class PrepareReleaseAction {
       const gitHubClient = new OctokitGitHubClient(accessToken);
       const request = {
         tagName: getInput("tag-name", { required: true }),
+        mainBranch: getInput("main-branch", { required: true }),
         repository,
         author: PrepareReleaseAction._readAuthor(),
         packageWorkspaces: PrepareReleaseAction._parsePackageWorkspaces(

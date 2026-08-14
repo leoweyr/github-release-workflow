@@ -80,6 +80,7 @@ export class PrepareReleaseAction {
 
             const request: PrepareReleaseRequest = {
                 tagName: core.getInput('tag-name', { required: true }),
+                mainBranch: core.getInput('main-branch', { required: true }),
                 repository,
                 author: PrepareReleaseAction._readAuthor(),
                 packageWorkspaces: PrepareReleaseAction._parsePackageWorkspaces(

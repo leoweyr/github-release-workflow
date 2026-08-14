@@ -7,7 +7,7 @@ Update both user-side entry workflows before preparing the first v2 release.
 In `.github/workflows/prepare-release.yml`:
 
 - Update the reusable workflow reference from `@develop` to `@v2.0.0`.
-- Remove `base-branch`.
+- Rename `base-branch` to `main-branch` and set it to the repository's main branch.
 - If configured, rename `node-verions` to `node-version`.
 
 ```diff
@@ -18,12 +18,11 @@ In `.github/workflows/prepare-release.yml`:
      with:
 -      base-branch: 'master'
 -      node-verions: '20'
++      main-branch: 'master'
 +      node-version: '20'
      secrets:
        ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
-
-Omit the `with` block when no other prepare workflow inputs are configured.
 
 ## Update the Publish Workflow
 
@@ -61,5 +60,5 @@ Set `main-branch` explicitly. Do not use the repository's default branch when it
 ## Verify the Migration
 
 - Both reusable workflow references use `@v2.0.0`.
-- `prepare-release.yml` does not contain `base-branch` or `node-verions`.
+- `prepare-release.yml` does not contain `base-branch` or `node-verions` and sets the correct `main-branch`.
 - `publish-release.yml` grants `pull-requests: write` and sets the correct `main-branch`.
