@@ -7,6 +7,8 @@
 > To ensure changelogs are generated correctly, all git commit messages must follow the **[Conventional Commits](https://www.conventionalcommits.org/)** specification.
 >
 > Also, you must go to your repository **Settings > Actions > General > Workflow permissions** and enable **"Allow GitHub Actions to create and approve pull requests"**, otherwise the automated release process will fail.
+>
+> Every Pull Request from a `prerelease/*` branch to its persistent `release/*` branch must be merged using **"Create a merge commit"** instead of **"Squash and merge"** or **"Rebase and merge"**.
 
 ## 🚀 Instant Magic for Your Repository!!!
 
@@ -16,7 +18,15 @@ Add professional release automation to your personal project with a single step:
 
 ✨ That's it! Your repository is now enchanted.
 
+## ⚠ Breaking Change
+
+| Migration Guide                               |
+|-----------------------------------------------|
+| [v1 to v2](docs/migrations/v1-to-v2-guide.md) |
+
 ## ⚙ How It Works
+
+![Release Flow](docs/release-flow.png)
 
 This workflow streamlines your release process into a few simple steps:
 
@@ -33,8 +43,10 @@ This workflow streamlines your release process into a few simple steps:
 
 3.  **Automated Magic**: GitHub Actions will automatically:
     *   Generate a changelog based on your conventional commits.
-    *   Create a specific release branch.
-    *   Open a Pull Request to your default branch (e.g., `master`).
+    *   For a stable release without preceding prereleases, create only `release/<stable-tag>` at the tagged commit and open its Pull Request directly to the main branch.
+    *   For the first prerelease, create `release/v<stable-version>` and `prerelease/<tag>` branches at the tagged commit, and open a Pull Request to the persistent release branch.
+    *   For later prereleases, create `prerelease/<tag>` branch at the tagged commit, and open a Pull Request to the same persistent release branch.
+    *   For the stable release that concludes the prerelease series, merge `prerelease/<stable-tag>` into the persistent release branch and then promote the release branch to the main branch through a second Pull Request.
 
 4.  **Review and Merge**: Review the Pull Request created by the bot.
     *   **Do not modify the Pull Request title or body**, as they are used for the release metadata.
@@ -73,9 +85,8 @@ This workflow also releases individual sub-packages inside a mono-repo. Each sub
    
    jobs:
      call-prepare:
-       uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@develop
+       uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@v2.0.0
        with:
-         base-branch: 'master'
          packages: |
            {
              "core": "packages/core",
@@ -92,7 +103,7 @@ This workflow also releases individual sub-packages inside a mono-repo. Each sub
    ```yaml
    jobs:
      call-publish:
-       uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@develop
+       uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@v2.0.0
        with:
          package-overrides: |
            {

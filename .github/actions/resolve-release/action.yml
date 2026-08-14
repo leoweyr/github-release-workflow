@@ -1,0 +1,31 @@
+name: 'Resolve Release'
+description: 'Resolve and validate release metadata from a merged release pull request.'
+
+
+inputs:
+  pull-request-title:
+    description: 'Merged release pull request title.'
+    required: true
+
+  working-directory:
+    description: 'Checked-out caller repository containing the release tag.'
+    required: false
+    default: '.'
+
+
+outputs:
+  tag-name:
+    description: 'Release Git tag.'
+  release-version:
+    description: 'Release version without the `v` prefix.'
+  release-at:
+    description: 'UTC timestamp of the tagged commit.'
+  package-name:
+    description: 'Monorepo package name, or an empty string for monolith repository.'
+  prerelease:
+    description: 'Whether the release version is a prerelease.'
+
+
+runs:
+  using: 'node24'
+  main: 'dist/index.cjs'

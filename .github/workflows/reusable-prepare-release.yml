@@ -4,17 +4,17 @@ name: Prepare Release
 on:
   workflow_call:
     inputs:
-      node-verions:
+      main-branch:
+        description: 'Main branch targeted by stable release pull requests.'
+        required: false
+        type: string
+        default: 'master'
+
+      node-version:
         description: 'Node.js version to use.'
         required: false
         type: string
         default: '20'
-
-      base-branch:
-        description: 'Base branch name for release pull requests.'
-        required: false
-        type: string
-        default: 'master'
 
       commit-user-name:
         description: 'Git user name for commit'
@@ -50,139 +50,34 @@ jobs:
           curl -s "https://abacus.jasoncameron.dev/hit/leoweyr/github-release-workflow-usage" > /dev/null
 
       - name: 📂 Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: 🔄 Sync Changelog Config
-        uses: actions/checkout@v4
+      - name: 🔄 Sync Release Action
+        uses: actions/checkout@v6
         with:
-          repository: 'leoweyr/github-release-workflow'
-          path: .change-log-config
-          sparse-checkout: src/cliff.toml
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/prepare-release
+            src/cliff.toml
 
       - name: 📦 Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: ${{ inputs.node-verions }}
+          node-version: ${{ inputs.node-version }}
+          package-manager-cache: false
 
-      - name: 🧭 Resolve Release Context
-        env:
-          PACKAGES: ${{ inputs.packages }}
-        run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          echo "TAG_NAME=${TAG_NAME}" >> "$GITHUB_ENV"
-
-          if [[ "$TAG_NAME" =~ ^(.+)/(v[0-9].*)$ ]]; then
-            # Mono-repo mode: tag format is <package>/v<semver>.
-            PACKAGE_NAME="${BASH_REMATCH[1]}"
-            VERSION_TAG="${BASH_REMATCH[2]}"
-
-            WORKSPACE=$(printf '%s' "$PACKAGES" | jq -r --arg name "$PACKAGE_NAME" '.[$name] // empty')
-          
-            if [ -z "$WORKSPACE" ]; then
-              echo "❌ Sub-package '${PACKAGE_NAME}' is not declared in the 'packages' input."
-              exit 1
-            fi
-          
-            # Normalize: strip any trailing slash.
-            WORKSPACE="${WORKSPACE%/}"
-
-            # Escape regex metacharacters in the package name for the tag pattern.
-            ESCAPED_NAME=$(printf '%s' "$PACKAGE_NAME" | sed -e 's/[.[\$()*+?{|^]/\\&/g')
-
-            echo "PACKAGE_NAME=${PACKAGE_NAME}" >> "$GITHUB_ENV"
-            echo "RELEASE_VERSION=${VERSION_TAG#v}" >> "$GITHUB_ENV"
-            echo "RELEASE_LABEL=${PACKAGE_NAME}@${VERSION_TAG}" >> "$GITHUB_ENV"
-            echo "WORKSPACE=${WORKSPACE}" >> "$GITHUB_ENV"
-            echo "CHANGELOG_PATH=${WORKSPACE}/CHANGELOG.md" >> "$GITHUB_ENV"
-            echo "TAG_PATTERN=^${ESCAPED_NAME}/v[0-9].*" >> "$GITHUB_ENV"
-            echo "INCLUDE_PATH=${WORKSPACE}/**" >> "$GITHUB_ENV"
-
-            echo "📦 Mono-repo release: package='${PACKAGE_NAME}', workspace='${WORKSPACE}', version='${VERSION_TAG#v}'."
-          else
-            # Monolith mode: tag format is v<semver>.
-            echo "RELEASE_VERSION=${TAG_NAME#v}" >> "$GITHUB_ENV"
-            echo "RELEASE_LABEL=${TAG_NAME}" >> "$GITHUB_ENV"
-            echo "CHANGELOG_PATH=CHANGELOG.md" >> "$GITHUB_ENV"
-            echo "TAG_PATTERN=^v[0-9].*" >> "$GITHUB_ENV"
-            echo "INCLUDE_PATH=" >> "$GITHUB_ENV"
-
-            echo "📦 Monolith release: version='${TAG_NAME#v}'."
-          fi
-
-      - name: 🪾 Create Release Branch
-        run: |
-          git config --global user.name "${{ inputs.commit-user-name }}"
-          git config --global user.email "${{ inputs.commit-user-email }}"
-          git checkout -b release/${{ env.TAG_NAME }}
-
-      - name: 📝 Generate Changelog Content for PR Body
-        env:
-          GITHUB_REPO: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-        run: |
-          EXTRA_ARGS=()
-          
-          if [ -n "${INCLUDE_PATH}" ]; then
-            EXTRA_ARGS+=(--include-path "${INCLUDE_PATH}")
-          fi
-          
-          npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --latest --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > pr_body_raw.md
-
-      - name: 📂 Save PR Body to File
-        run: |
-          cat pr_body_raw.md | tail -n +2 > pr_body_cleaned.md
-
-      - name: 📝 Update Changelog File
-        env:
-          GITHUB_REPO: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-        run: |
-          EXTRA_ARGS=()
-          
-          if [ -n "${INCLUDE_PATH}" ]; then
-            EXTRA_ARGS+=(--include-path "${INCLUDE_PATH}")
-          fi
-          
-          if [ -f "${CHANGELOG_PATH}" ]; then
-             # `--latest` picks the newest tag matching `--tag-pattern` (so it stays scoped
-             # to this package) and emits exactly that one section, then splice it in by hand.
-             # (`--current` is unusable here: when one commit carries several package tags,
-             #  it resolves HEAD's tag via git's default ordering and fails the pattern check
-             #  with "No tag exists for the current commit". 
-             # `--prepend` is unusable too: it requires `-u/-l` and inserts above the file header.)
-             TEMP_SECTION=$(mktemp)
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --strip all --latest --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" > "${TEMP_SECTION}"
-
-             # Find the line just before the first version heading (# [x.y.z] or # x.y.z).
-             HEADER_END=$(awk '/^# \[|^# [0-9]/{print NR-1; exit}' "${CHANGELOG_PATH}")
-             TEMP_MERGED=$(mktemp)
-             head -n "${HEADER_END}" "${CHANGELOG_PATH}" > "${TEMP_MERGED}"
-             cat "${TEMP_SECTION}" >> "${TEMP_MERGED}"
-             tail -n +$((HEADER_END + 1)) "${CHANGELOG_PATH}" >> "${TEMP_MERGED}"
-             mv "${TEMP_MERGED}" "${CHANGELOG_PATH}"
-             rm -f "${TEMP_SECTION}"
-          else
-             # File missing: Create new with full history up to the current tag.
-             # Resolve the tag to its commit SHA first.
-             # Newer git-cliff versions cannot parse a tag name directly as a commit OID.
-             TAG_COMMIT=$(git rev-parse "${TAG_NAME}^{}")
-             npx git-cliff --config .change-log-config/src/cliff.toml --verbose --output "${CHANGELOG_PATH}" --tag-pattern "${TAG_PATTERN}" "${EXTRA_ARGS[@]}" "${TAG_COMMIT}"
-          fi
-
-      - name: 🔄 Sync Commit and Push
-        run: |
-          git add "${CHANGELOG_PATH}"
-          git commit -m "release: ${{ env.RELEASE_LABEL }}"
-          git push origin release/${{ env.TAG_NAME }}
-
-      - name: 🚀 Deploy Pull Request
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-        run: |
-          gh pr create \
-            --title "release: ${{ env.RELEASE_LABEL }}" \
-            --body-file pr_body_cleaned.md \
-            --base ${{ inputs.base-branch }} \
-            --head release/${{ env.TAG_NAME }}
+      - name: 🧰 Prepare Release
+        uses: ./.release-workflow/.github/actions/prepare-release
+        with:
+          access-token: ${{ secrets.ACCESS_TOKEN }}
+          tag-name: ${{ github.ref_name }}
+          main-branch: ${{ inputs.main-branch }}
+          commit-user-name: ${{ inputs.commit-user-name }}
+          commit-user-email: ${{ inputs.commit-user-email }}
+          packages: ${{ inputs.packages }}
+          changelog-configuration-path: .release-workflow/src/cliff.toml
+          working-directory: ${{ github.workspace }}

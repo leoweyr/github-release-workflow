@@ -1,0 +1,55 @@
+{
+    "name": "github-release-workflow",
+    "private": true,
+    "version": "2.0.0",
+    "description": "Streamline your software delivery with a production-ready engineering workflow. Automated semantic versioning, changelog generation (via git-cliff), and aggregated release publishing across GitHub and major package registries.",
+    "bugs": "https://github.com/leoweyr/github-release-workflow/issues",
+    "type": "module",
+    "engines": {
+        "node": ">=24.0.0"
+    },
+    "scripts": {
+        "bundle": "rollup --config rollup.config.mjs",
+        "build": "tsc --noEmit && npm run bundle"
+    },
+    "keywords": [
+        "automated-release",
+        "changelog-generator",
+        "ci-cd",
+        "conventional-commits",
+        "devops",
+        "engineering-workflow",
+        "git-cliff",
+        "github-actions",
+        "npm",
+        "npm-publish",
+        "package-publishing",
+        "package-registry",
+        "pipeline",
+        "production-ready",
+        "release-automation",
+        "reusable-workflows",
+        "semantic-release",
+        "software-delivery"
+    ],
+    "author": "leoweyr <contact@leoweyr.com>",
+    "license": "Apache-2.0",
+    "dependencies": {
+        "@actions/core": "3.0.1",
+        "@actions/exec": "3.0.0",
+        "@actions/github": "9.1.1"
+    },
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "29.0.3",
+        "@rollup/plugin-node-resolve": "16.0.3",
+        "@types/node": "26.1.2",
+        "esbuild": "0.28.1",
+        "rollup": "4.62.4",
+        "rollup-plugin-esbuild": "6.2.1",
+        "typescript": "6.0.3"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/leoweyr/github-release-workflow.git"
+    }
+}

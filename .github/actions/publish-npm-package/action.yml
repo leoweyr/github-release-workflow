@@ -1,0 +1,90 @@
+name: 'Publish NPM Package'
+description: 'Publish package to npm registry.'
+
+
+inputs:
+  access-token:
+    description: 'NPM auth token.'
+    required: true
+    default: ''
+
+  node-version:
+    description: 'Node.js version to use.'
+    required: false
+    default: '20'
+
+  package-dir:
+    description: 'Directory containing package.json.'
+    required: false
+    default: '.'
+
+  deploy-command:
+    description: 'Publish command to execute.'
+    required: false
+    default: 'npm run deploy'
+
+  package-name:
+    description: 'Monorepo package name, or an empty string for monolith repository.'
+    required: false
+    default: ''
+
+  release-version:
+    description: 'Release version without the v prefix.'
+    required: true
+
+  package-overrides:
+    description: 'JSON object mapping mono-repo sub-package to its specific inputs.'
+    required: false
+    default: '{}'
+
+  working-directory:
+    description: 'Checked-out caller repository containing the NPM package.'
+    required: false
+    default: '.'
+
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 📦 Install Action Runtime
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+        package-manager-cache: false
+
+    - name: 🔍 Resolve Action Runtime
+      id: resolve_action_runtime
+      shell: bash
+      run: printf 'node-command=%s\n' "$(command -v node)" >> "$GITHUB_OUTPUT"
+
+    - name: 🔍 Resolve NPM Package Publishing Settings
+      id: prepare
+      shell: bash
+      env:
+        NPM_PUBLISH_ACCESS_TOKEN: ${{ inputs.access-token }}
+        NPM_PUBLISH_NODE_VERSION: ${{ inputs.node-version }}
+        NPM_PUBLISH_PACKAGE_DIRECTORY: ${{ inputs.package-dir }}
+        NPM_PUBLISH_DEPLOY_COMMAND: ${{ inputs.deploy-command }}
+        NPM_PUBLISH_PACKAGE_NAME: ${{ inputs.package-name }}
+        NPM_PUBLISH_PACKAGE_OVERRIDES: ${{ inputs.package-overrides }}
+        NPM_PUBLISH_RELEASE_VERSION: ${{ inputs.release-version }}
+      run: '"${{ steps.resolve_action_runtime.outputs.node-command }}" "$GITHUB_ACTION_PATH/dist/index.cjs" prepare'
+
+    - name: 📦 Install Node.js
+      if: steps.prepare.outputs.enabled == 'true'
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ steps.prepare.outputs.node-version }}
+        package-manager-cache: false
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: 🚀 Publish NPM Package
+      if: steps.prepare.outputs.enabled == 'true'
+      shell: bash
+      env:
+        NPM_PUBLISH_ACCESS_TOKEN: ${{ inputs.access-token }}
+        NPM_PUBLISH_PACKAGE_DIRECTORY: ${{ steps.prepare.outputs.package-dir }}
+        NPM_PUBLISH_DEPLOY_COMMAND: ${{ steps.prepare.outputs.deploy-command }}
+        NPM_PUBLISH_DIST_TAG: ${{ steps.prepare.outputs.dist-tag }}
+        NPM_PUBLISH_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: '"${{ steps.resolve_action_runtime.outputs.node-command }}" "$GITHUB_ACTION_PATH/dist/index.cjs" publish'

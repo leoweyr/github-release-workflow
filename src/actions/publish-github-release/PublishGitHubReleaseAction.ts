@@ -1,0 +1,65 @@
+import * as core from '@actions/core';
+import { context } from '@actions/github';
+
+import { ActionCommandRunner } from '../../command/ActionCommandRunner';
+import { CommandGitRepository } from '../../git/CommandGitRepository';
+import type { GitHubRepositoryReference } from '../../github/GitHubRepositoryReference';
+import { OctokitGitHubClient } from '../../github/OctokitGitHubClient';
+import type { GitHubReleasePublication } from '../../publishing/github/GitHubReleasePublication';
+import { GitHubReleasePublisher } from '../../publishing/github/GitHubReleasePublisher';
+import { ReleaseTag } from '../../release/ReleaseTag';
+
+
+export class PublishGitHubReleaseAction {
+    private static _toError(error: unknown): Error {
+        if (error instanceof Error) {
+            return error;
+        }
+
+        return new Error('Publish GitHub Release failed with a non-error value.');
+    }
+
+    public static async run(): Promise<void> {
+        try {
+            const accessToken: string = core.getInput('access-token', { required: true });
+
+            core.setSecret(accessToken);
+
+            const releaseTag: ReleaseTag = ReleaseTag.fromTagName(
+                core.getInput('tag-name', { required: true }),
+            );
+
+            const repositoryContext: { owner: string; repo: string } = context.repo;
+
+            const repository: GitHubRepositoryReference = {
+                owner: repositoryContext.owner,
+                name: repositoryContext.repo,
+            };
+
+            const commandRunner: ActionCommandRunner = new ActionCommandRunner();
+            const gitRepository: CommandGitRepository = new CommandGitRepository(
+                commandRunner,
+                core.getInput('working-directory', { required: true }),
+            );
+
+            const githubReleasePublisher: GitHubReleasePublisher = new GitHubReleasePublisher(
+                gitRepository,
+                new OctokitGitHubClient(accessToken),
+            );
+
+            const githubPublication: GitHubReleasePublication = await githubReleasePublisher.publish(
+                repository,
+                releaseTag,
+                core.getInput('release-body', { trimWhitespace: false }),
+            );
+
+            const publicationStatus: string = githubPublication.created ? 'Created' : 'Reused';
+
+            core.info(
+                `${publicationStatus} GitHub Release '${releaseTag.releaseTitle}': ${githubPublication.reference.url}`
+            );
+        } catch (error: unknown) {
+            core.setFailed(PublishGitHubReleaseAction._toError(error));
+        }
+    }
+}

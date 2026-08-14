@@ -1,0 +1,35 @@
+name: 'Bump TRB Project Node Version'
+description: 'Trigger TRB bump project node version workflow dispatch.'
+
+
+inputs:
+  trb-repository:
+    description: 'Target TRB repository.'
+    required: true
+    default: ''
+
+  project-node-name:
+    description: 'The description (name) of TRB node.'
+    required: true
+    default: ''
+
+  release-version:
+    description: 'Release version from the current publish tag without the v prefix (for example, 1.0.0).'
+    required: true
+
+  release-at:
+    description: 'UTC timestamp of the tagged commit in ISO 8601 format (YYYY-MM-DDTHH:mm:ss.000Z).'
+    required: true
+
+  prerelease:
+    description: 'Whether the release version is a prerelease.'
+    required: true
+
+  access-token:
+    description: 'GitHub token with workflow dispatch permission.'
+    required: true
+
+
+runs:
+  using: 'node24'
+  main: 'dist/index.cjs'

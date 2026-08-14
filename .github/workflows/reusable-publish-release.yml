@@ -4,20 +4,26 @@ name: Publish Release
 on:
   workflow_call:
     inputs:
+      main-branch:
+        description: 'Main branch targeted by stable release pull requests.'
+        required: false
+        type: string
+        default: 'master'
+
       npm-node-version:
-        description: 'Node.js version for npm publish.'
+        description: 'Node.js version for NPM package publishing.'
         required: false
         type: string
         default: '20'
 
       npm-package-dir:
-        description: 'Directory containing package.json for npm publish.'
+        description: 'Directory containing package.json for NPM package publishing.'
         required: false
         type: string
         default: '.'
 
       npm-deploy-command:
-        description: 'Command used to publish npm package.'
+        description: 'Command used for NPM package publishing.'
         required: false
         type: string
         default: 'npm run deploy'
@@ -48,9 +54,52 @@ on:
 
 
 jobs:
-  publish-release:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, 'release:')
+  route_release:
+    if: >-
+      github.event.pull_request.merged == true
+      && startsWith(github.event.pull_request.title, 'release:')
     runs-on: ubuntu-latest
+    outputs:
+      publish_release: ${{ steps.route_release.outputs['publish-release'] }}
+      release_history_revision: ${{ steps.route_release.outputs['release-history-revision'] }}
+    concurrency:
+      group: route-release-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 🔄 Sync Release Routing Action
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/route-release
+
+      - name: 🚦 Route Release
+        id: route_release
+        uses: ./.release-workflow/.github/actions/route-release
+        with:
+          access-token: ${{ secrets.ACCESS_TOKEN }}
+          pull-request-title: ${{ github.event.pull_request.title }}
+          pull-request-body: ${{ github.event.pull_request.body }}
+          base-branch: ${{ github.event.pull_request.base.ref }}
+          head-branch: ${{ github.event.pull_request.head.ref }}
+          head-revision: ${{ github.event.pull_request.head.sha }}
+          main-branch: ${{ inputs.main-branch }}
+
+  resolve_release:
+    needs: route_release
+    if: >-
+      needs.route_release.result == 'success'
+      && needs.route_release.outputs.publish_release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.resolve_release_metadata.outputs['tag-name'] }}
+      release_version: ${{ steps.resolve_release_metadata.outputs['release-version'] }}
+      release_at: ${{ steps.resolve_release_metadata.outputs['release-at'] }}
+      package_name: ${{ steps.resolve_release_metadata.outputs['package-name'] }}
+      prerelease: ${{ steps.resolve_release_metadata.outputs.prerelease }}
 
     steps:
       - name: 👣 Track Workflow Run
@@ -59,146 +108,118 @@ jobs:
           curl -s "https://abacus.jasoncameron.dev/hit/leoweyr/github-release-workflow-usage" > /dev/null
 
       - name: 📂 Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ needs.route_release.outputs.release_history_revision }}
 
-      - name: 🔍 Verify Release Tag Name
-        id: extract_tag
-        run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          RELEASE_LABEL=$(printf '%s' "$TITLE" | sed 's/release: //')
-
-          if [[ "$RELEASE_LABEL" =~ ^(.+)@(v[0-9].*)$ ]]; then
-            # Mono-repo mode: label format is <package>@v<semver>.
-            PACKAGE_NAME="${BASH_REMATCH[1]}"
-            VERSION_TAG="${BASH_REMATCH[2]}"
-            RELEASE_VERSION="${VERSION_TAG#v}"
-            RELEASE_TITLE="${PACKAGE_NAME}@${VERSION_TAG}"
-            # Reconstruct the git tag name (<package>/v<semver>).
-            ORIGINAL_TAG_NAME="${PACKAGE_NAME}/${VERSION_TAG}"
-          else
-            # Monolith mode: label format is v<semver>.
-            PACKAGE_NAME=""
-            RELEASE_VERSION="${RELEASE_LABEL#v}"
-            RELEASE_TITLE="${RELEASE_VERSION}"
-            ORIGINAL_TAG_NAME="${RELEASE_LABEL}"
-          fi
-
-          printf 'package_name=%s\n' "$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
-
-          TAG_COMMIT_HASH=$(git rev-list -n 1 "$ORIGINAL_TAG_NAME")
-
-          if [ -z "$TAG_COMMIT_HASH" ]; then
-            echo '❌ Tag commit hash not found.'
-            exit 1
-          fi
-
-          RELEASE_AT=$(TZ=UTC git show -s --format="%cd" --date=format-local:"%Y-%m-%dT%H:%M:%S.000Z" "$TAG_COMMIT_HASH")
-          printf 'TAG_NAME=%s\n' "$ORIGINAL_TAG_NAME" >> "$GITHUB_ENV"
-          printf 'RELEASE_VERSION=%s\n' "$RELEASE_VERSION" >> "$GITHUB_ENV"
-          printf 'RELEASE_TITLE=%s\n' "$RELEASE_TITLE" >> "$GITHUB_ENV"
-          printf 'RELEASE_AT=%s\n' "$RELEASE_AT" >> "$GITHUB_ENV"
-
-      - name: 📝 Create Release Body File
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: printf '%s\n' "$PR_BODY" > release_body.md
-
-      - name: 🚀 Deploy GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-        run: |
-          gh release create ${{ env.TAG_NAME }} \
-            --title "${{ env.RELEASE_TITLE }}" \
-            --notes-file release_body.md \
-            --verify-tag
-
-      - name: 🔍 Verify NPM Token
-        id: verify_npm_token
-        run: |
-          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
-            echo '👻 NPM_TOKEN is not configured.'
-            printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          printf 'enabled=true\n' >> "$GITHUB_OUTPUT"
-
-      - name: 📝 Resolve NPM Config
-        id: resolve_npm_config
-        if: steps.verify_npm_token.outputs.enabled == 'true'
-        env:
-          PACKAGE_NAME: ${{ steps.extract_tag.outputs.package_name }}
-          PACKAGE_OVERRIDES: ${{ inputs.package-overrides }}
-          DEFAULT_NODE_VERSION: ${{ inputs.npm-node-version }}
-          DEFAULT_PACKAGE_DIR: ${{ inputs.npm-package-dir }}
-          DEFAULT_DEPLOY_COMMAND: ${{ inputs.npm-deploy-command }}
-        run: |
-          NODE_VERSION="$DEFAULT_NODE_VERSION"
-          PACKAGE_DIR="$DEFAULT_PACKAGE_DIR"
-          DEPLOY_COMMAND="$DEFAULT_DEPLOY_COMMAND"
-
-          if [ -n "$PACKAGE_NAME" ]; then
-            OVERRIDE=$(printf '%s' "$PACKAGE_OVERRIDES" | jq -c --arg pkg "$PACKAGE_NAME" '.[$pkg] // empty')
-
-            if [ -n "$OVERRIDE" ]; then
-              OVERRIDE_NODE_VERSION=$(printf '%s' "$OVERRIDE" | jq -r '."npm-node-version" // empty')
-              OVERRIDE_PACKAGE_DIR=$(printf '%s' "$OVERRIDE" | jq -r '."npm-package-dir" // empty')
-              OVERRIDE_DEPLOY_COMMAND=$(printf '%s' "$OVERRIDE" | jq -r '."npm-deploy-command" // empty')
-
-              [ -n "$OVERRIDE_NODE_VERSION" ] && NODE_VERSION="$OVERRIDE_NODE_VERSION"
-              [ -n "$OVERRIDE_PACKAGE_DIR" ] && PACKAGE_DIR="$OVERRIDE_PACKAGE_DIR"
-              [ -n "$OVERRIDE_DEPLOY_COMMAND" ] && DEPLOY_COMMAND="$OVERRIDE_DEPLOY_COMMAND"
-            fi
-          fi
-
-          printf 'npm_node_version=%s\n' "$NODE_VERSION" >> "$GITHUB_OUTPUT"
-          printf 'npm_package_dir=%s\n' "$PACKAGE_DIR" >> "$GITHUB_OUTPUT"
-          printf 'npm_deploy_command=%s\n' "$DEPLOY_COMMAND" >> "$GITHUB_OUTPUT"
-
-      - name: 🔍 Verify TRB Inputs
-        id: verify_trb_inputs
-        run: |
-          if [ -z "${{ inputs.trb-repository }}" ]; then
-            echo '👻 trb-repository is not configured.'
-            printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ -z "${{ inputs.trb-project-node-name }}" ]; then
-            echo '👻 trb-project-node-name is not configured.'
-            printf 'enabled=false\n' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          printf 'enabled=true\n' >> "$GITHUB_OUTPUT"
-
-      - name: 🔄 Sync Release Actions
-        if: steps.verify_npm_token.outputs.enabled == 'true' || steps.verify_trb_inputs.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+      - name: 🔄 Sync Release Resolution Action
+        uses: actions/checkout@v6
         with:
-          repository: 'leoweyr/github-release-workflow'
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: .release-workflow
           sparse-checkout: |
-            .github/actions/npm-publish
-            .github/actions/trb-project-node-version-bump
+            .github/actions/resolve-release
+
+      - name: 🔍 Resolve Release Metadata
+        id: resolve_release_metadata
+        uses: ./.release-workflow/.github/actions/resolve-release
+        with:
+          pull-request-title: ${{ github.event.pull_request.title }}
+          working-directory: ${{ github.workspace }}
+
+  publish_github_release:
+    needs: [route_release, resolve_release]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-github-release-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 📂 Checkout Code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.route_release.outputs.release_history_revision }}
+
+      - name: 🔄 Sync GitHub Release Publication Action
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/publish-github-release
+
+      - name: 🚀 Publish GitHub Release
+        uses: ./.release-workflow/.github/actions/publish-github-release
+        with:
+          access-token: ${{ secrets.ACCESS_TOKEN }}
+          tag-name: ${{ needs.resolve_release.outputs.tag_name }}
+          release-body: ${{ github.event.pull_request.body }}
+          working-directory: ${{ github.workspace }}
+
+  publish_npm_package:
+    needs: resolve_release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-npm-package-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 📂 Checkout Code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: 🔄 Sync NPM Package Publication Action
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/publish-npm-package
 
       - name: 🚀 Deploy NPM Package
-        if: steps.verify_npm_token.outputs.enabled == 'true'
-        uses: ./.release-workflow/.github/actions/npm-publish
+        uses: ./.release-workflow/.github/actions/publish-npm-package
         with:
-          node-version: ${{ steps.resolve_npm_config.outputs.npm_node_version }}
-          package-dir: ${{ steps.resolve_npm_config.outputs.npm_package_dir }}
-          deploy-command: ${{ steps.resolve_npm_config.outputs.npm_deploy_command }}
           access-token: ${{ secrets.NPM_TOKEN }}
+          node-version: ${{ inputs.npm-node-version }}
+          package-dir: ${{ inputs.npm-package-dir }}
+          deploy-command: ${{ inputs.npm-deploy-command }}
+          package-name: ${{ needs.resolve_release.outputs.package_name }}
+          release-version: ${{ needs.resolve_release.outputs.release_version }}
+          package-overrides: ${{ inputs.package-overrides }}
+          working-directory: ${{ github.workspace }}
+
+  bump_trb_project_node_version:
+    needs: resolve_release
+    if: >-
+      needs.resolve_release.result == 'success'
+      && needs.resolve_release.outputs.prerelease != 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: bump-trb-project-node-version-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 🔄 Sync TRB Project Node Version Bumping Action
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/bump-trb-project-node-version
 
       - name: 🚀 Bump TRB Project Node Version
-        if: steps.verify_trb_inputs.outputs.enabled == 'true'
-        uses: ./.release-workflow/.github/actions/trb-project-node-version-bump
+        uses: ./.release-workflow/.github/actions/bump-trb-project-node-version
         with:
           trb-repository: ${{ inputs.trb-repository }}
           project-node-name: ${{ inputs.trb-project-node-name }}
-          release-version: ${{ env.RELEASE_VERSION }}
-          release-at: ${{ env.RELEASE_AT }}
+          release-version: ${{ needs.resolve_release.outputs.release_version }}
+          release-at: ${{ needs.resolve_release.outputs.release_at }}
+          prerelease: ${{ needs.resolve_release.outputs.prerelease }}
           access-token: ${{ secrets.ACCESS_TOKEN }}

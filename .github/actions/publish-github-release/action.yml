@@ -1,0 +1,26 @@
+name: 'Publish GitHub Release'
+description: 'Create a GitHub Release from a merged release pull request.'
+
+
+inputs:
+  access-token:
+    description: 'GitHub token used to create the release.'
+    required: true
+
+  tag-name:
+    description: 'Release Git tag.'
+    required: true
+
+  release-body:
+    description: 'Release notes copied from the merged pull request body.'
+    required: false
+    default: ''
+
+  working-directory:
+    description: 'Checked-out caller repository containing the release tag.'
+    required: false
+    default: '.'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.cjs'
