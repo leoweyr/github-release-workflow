@@ -45,6 +45,7 @@ export class RouteReleaseAction {
             });
 
             core.setOutput('publish-release', result.publishRelease);
+            core.setOutput('release-branch', result.releaseBranch);
             core.setOutput('release-history-revision', result.releaseHistoryRevision ?? '');
 
             if (result.promotionPullRequest !== null) {

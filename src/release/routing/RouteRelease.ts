@@ -36,6 +36,7 @@ export class RouteRelease {
             if (releaseTag.version.isPrerelease) {
                 return {
                     publishRelease: true,
+                    releaseBranch,
                     releaseHistoryRevision: request.baseBranch,
                     promotionPullRequest: null,
                 };
@@ -50,6 +51,7 @@ export class RouteRelease {
 
             return {
                 publishRelease: false,
+                releaseBranch,
                 releaseHistoryRevision: null,
                 promotionPullRequest,
             };
@@ -62,6 +64,7 @@ export class RouteRelease {
         if (isStablePublicationPullRequest) {
             return {
                 publishRelease: true,
+                releaseBranch,
                 releaseHistoryRevision: request.headRevision,
                 promotionPullRequest: null,
             };

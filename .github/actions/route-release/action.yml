@@ -36,6 +36,8 @@ inputs:
 outputs:
   publish-release:
     description: 'Whether the merged pull request must publish a release.'
+  release-branch:
+    description: 'Persistent release branch containing the changelog commit.'
   release-history-revision:
     description: 'Git revision whose history must contain the release tag.'
 

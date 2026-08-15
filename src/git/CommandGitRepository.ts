@@ -6,6 +6,7 @@ import { InvalidGitOutputError } from './exceptions/InvalidGitOutputError';
 
 
 export class CommandGitRepository implements GitRepository {
+    private static readonly _cherryPatchPattern: RegExp = /^([+-]) ([0-9a-f]{40}|[0-9a-f]{64})$/u;
     private static readonly _commitHashPattern: RegExp = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u;
     private static readonly _existsExitCode: number = 0;
     private static readonly _missingExitCode: number = 2;
@@ -44,12 +45,72 @@ export class CommandGitRepository implements GitRepository {
         await this._execute(commandArguments);
     }
 
+    public async findCommitsBySubject(revision: string, subject: string): Promise<readonly string[]> {
+        const result: CommandExecutionResult = await this._execute([
+            'log',
+            '--format=%H%x00%s',
+            '--fixed-strings',
+            `--grep=${subject}`,
+            revision,
+        ]);
+
+        const outputLines: string[] = result.standardOutput
+            .split('\n')
+            .filter((outputLine: string): boolean => outputLine.length > 0);
+
+        const commitHashes: string[] = [];
+
+        outputLines.forEach((outputLine: string): void => {
+            const separatorIndex: number = outputLine.indexOf('\0');
+            const commitHash: string = outputLine.slice(0, separatorIndex);
+            const commitSubject: string = outputLine.slice(separatorIndex + 1);
+
+            if (separatorIndex === -1 || !CommandGitRepository._commitHashPattern.test(commitHash)) {
+                throw new InvalidGitOutputError('find commits by subject', outputLine);
+            }
+
+            if (commitSubject === subject) {
+                commitHashes.push(commitHash);
+            }
+        });
+
+        return commitHashes;
+    }
+
+    public async hasEquivalentPatch(commitRevision: string, targetRevision: string): Promise<boolean> {
+        if (await this.isAncestor(commitRevision, targetRevision)) {
+            return true;
+        }
+
+        const commitHash: string = await this.resolveCommit(commitRevision);
+
+        const result: CommandExecutionResult = await this._execute([
+            'cherry',
+            targetRevision,
+            commitHash,
+            `${commitHash}^`,
+        ]);
+
+        const patchStatus: string = result.standardOutput.trim();
+        const patchMatch: RegExpExecArray | null = CommandGitRepository._cherryPatchPattern.exec(patchStatus);
+
+        if (patchMatch === null || patchMatch[2] !== commitHash) {
+            throw new InvalidGitOutputError('compare commit patch', patchStatus);
+        }
+
+        return patchMatch[1] === '-';
+    }
+
     public async stagePaths(filePaths: readonly string[]): Promise<void> {
         await this._execute(['add', '--', ...filePaths]);
     }
 
     public async commit(message: string): Promise<void> {
         await this._execute(['commit', '-m', message]);
+    }
+
+    public async cherryPick(commitRevision: string): Promise<void> {
+        await this._execute(['cherry-pick', commitRevision]);
     }
 
     public async pushBranch(remoteName: string, branchName: string): Promise<void> {
@@ -89,6 +150,10 @@ export class CommandGitRepository implements GitRepository {
         }
 
         return commitDate;
+    }
+
+    public async fetchRemoteRevision(remoteName: string, revision: string): Promise<void> {
+        await this._execute(['fetch', '--no-tags', remoteName, revision]);
     }
 
     public async fetchRemoteBranch(remoteName: string, branchName: string): Promise<void> {

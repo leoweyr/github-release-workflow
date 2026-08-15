@@ -29379,6 +29379,7 @@ class InvalidGitOutputError extends Error {
 }
 
 class CommandGitRepository {
+  static _cherryPatchPattern = /^([+-]) ([0-9a-f]{40}|[0-9a-f]{64})$/u;
   static _commitHashPattern = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u;
   static _existsExitCode = 0;
   static _missingExitCode = 2;
@@ -29406,11 +29407,55 @@ class CommandGitRepository {
     }
     await this._execute(commandArguments);
   }
+  async findCommitsBySubject(revision, subject) {
+    const result = await this._execute([
+      "log",
+      "--format=%H%x00%s",
+      "--fixed-strings",
+      `--grep=${subject}`,
+      revision
+    ]);
+    const outputLines = result.standardOutput.split("\n").filter((outputLine) => outputLine.length > 0);
+    const commitHashes = [];
+    outputLines.forEach((outputLine) => {
+      const separatorIndex = outputLine.indexOf("\0");
+      const commitHash = outputLine.slice(0, separatorIndex);
+      const commitSubject = outputLine.slice(separatorIndex + 1);
+      if (separatorIndex === -1 || !CommandGitRepository._commitHashPattern.test(commitHash)) {
+        throw new InvalidGitOutputError("find commits by subject", outputLine);
+      }
+      if (commitSubject === subject) {
+        commitHashes.push(commitHash);
+      }
+    });
+    return commitHashes;
+  }
+  async hasEquivalentPatch(commitRevision, targetRevision) {
+    if (await this.isAncestor(commitRevision, targetRevision)) {
+      return true;
+    }
+    const commitHash = await this.resolveCommit(commitRevision);
+    const result = await this._execute([
+      "cherry",
+      targetRevision,
+      commitHash,
+      `${commitHash}^`
+    ]);
+    const patchStatus = result.standardOutput.trim();
+    const patchMatch = CommandGitRepository._cherryPatchPattern.exec(patchStatus);
+    if (patchMatch === null || patchMatch[2] !== commitHash) {
+      throw new InvalidGitOutputError("compare commit patch", patchStatus);
+    }
+    return patchMatch[1] === "-";
+  }
   async stagePaths(filePaths) {
     await this._execute(["add", "--", ...filePaths]);
   }
   async commit(message) {
     await this._execute(["commit", "-m", message]);
+  }
+  async cherryPick(commitRevision) {
+    await this._execute(["cherry-pick", commitRevision]);
   }
   async pushBranch(remoteName, branchName) {
     await this._execute(["push", remoteName, branchName]);
@@ -29438,6 +29483,9 @@ class CommandGitRepository {
       throw new InvalidGitOutputError("read commit date", dateValue);
     }
     return commitDate;
+  }
+  async fetchRemoteRevision(remoteName, revision) {
+    await this._execute(["fetch", "--no-tags", remoteName, revision]);
   }
   async fetchRemoteBranch(remoteName, branchName) {
     await this._execute([

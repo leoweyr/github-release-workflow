@@ -52,6 +52,7 @@ This workflow streamlines your release process into a few simple steps:
     *   **Do not modify the Pull Request title or body**, as they are used for the release metadata.
     *   Merge the Pull Request.
     *   The workflow will automatically create coordinated releases across GitHub and supported package registries.
+    *   The workflow will automatically cherry-pick the release changelog commit back to the configured development branch (`develop` by default).
 
 ## 📦 Optional Publishing
 
@@ -85,7 +86,7 @@ This workflow also releases individual sub-packages inside a mono-repo. Each sub
    
    jobs:
      call-prepare:
-       uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@v2.0.0
+       uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@v2.1.0
        with:
          packages: |
            {
@@ -103,7 +104,7 @@ This workflow also releases individual sub-packages inside a mono-repo. Each sub
    ```yaml
    jobs:
      call-publish:
-       uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@v2.0.0
+       uses: leoweyr/github-release-workflow/.github/workflows/reusable-publish-release.yml@v2.1.0
        with:
          package-overrides: |
            {
