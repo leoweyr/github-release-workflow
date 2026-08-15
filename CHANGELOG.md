@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+# [2.1.0](https://github.com/leoweyr/github-release-workflow/compare/v2.0.0...v2.1.0) (2026-08-15)
+### Features
+
+* sync release changelogs back to the development branch ([adca79b](https://github.com/leoweyr/github-release-workflow/commit/adca79b72ea9d282d036e106cb8bd9cd17806962)) [@leoweyr](https://github.com/leoweyr)
+
+
+
 # [2.0.0](https://github.com/leoweyr/github-release-workflow/compare/v1.4.1...v2.0.0) (2026-08-14)
 ### Bug Fixes
 
