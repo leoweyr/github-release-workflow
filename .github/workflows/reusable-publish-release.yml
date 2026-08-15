@@ -10,6 +10,24 @@ on:
         type: string
         default: 'master'
 
+      development-branch:
+        description: 'Development branch that receives the release changelog commit.'
+        required: false
+        type: string
+        default: 'develop'
+
+      commit-user-name:
+        description: 'Git user name for changelog synchronization commits.'
+        required: false
+        type: string
+        default: 'github-actions[bot]'
+
+      commit-user-email:
+        description: 'Git user email for changelog synchronization commits.'
+        required: false
+        type: string
+        default: 'github-actions[bot]@users.noreply.github.com'
+
       npm-node-version:
         description: 'Node.js version for NPM package publishing.'
         required: false
@@ -61,6 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       publish_release: ${{ steps.route_release.outputs['publish-release'] }}
+      release_branch: ${{ steps.route_release.outputs['release-branch'] }}
       release_history_revision: ${{ steps.route_release.outputs['release-history-revision'] }}
     concurrency:
       group: route-release-${{ github.repository }}-${{ github.event.pull_request.base.ref }}
@@ -223,3 +242,38 @@ jobs:
           release-at: ${{ needs.resolve_release.outputs.release_at }}
           prerelease: ${{ needs.resolve_release.outputs.prerelease }}
           access-token: ${{ secrets.ACCESS_TOKEN }}
+
+  sync_release_changelog:
+    needs: [route_release, resolve_release]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: sync-release-changelog-${{ github.repository }}-${{ inputs.development-branch }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 📂 Checkout Development Branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.development-branch }}
+          token: ${{ secrets.ACCESS_TOKEN }}
+
+      - name: 🔄 Sync Release Changelog Synchronization Action
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          sparse-checkout: |
+            .github/actions/sync-release-changelog
+
+      - name: 🍒 Sync Release Changelog
+        uses: ./.release-workflow/.github/actions/sync-release-changelog
+        with:
+          development-branch: ${{ inputs.development-branch }}
+          release-branch: ${{ needs.route_release.outputs.release_branch }}
+          release-commit-subject: ${{ github.event.pull_request.title }}
+          release-revision: ${{ needs.route_release.outputs.release_history_revision }}
+          commit-user-name: ${{ inputs.commit-user-name }}
+          commit-user-email: ${{ inputs.commit-user-email }}
+          working-directory: ${{ github.workspace }}

@@ -106,6 +106,23 @@ const actionBundleConfigurations = [
             exports: 'auto',
         },
     },
+    {
+        input: 'src/actions/sync-release-changelog/index.ts',
+        plugins: [
+            nodeResolve({
+                preferBuiltins: true,
+            }),
+            commonjs(),
+            esbuild({
+                target: 'node24',
+            }),
+        ],
+        output: {
+            file: '.github/actions/sync-release-changelog/dist/index.cjs',
+            format: 'cjs',
+            exports: 'auto',
+        },
+    },
 ];
 
 

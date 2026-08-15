@@ -1,0 +1,41 @@
+name: 'Sync Release Changelog'
+description: 'Cherry-pick the release changelog commit back to the development branch.'
+
+
+inputs:
+  development-branch:
+    description: 'Development branch that receives the release changelog commit.'
+    required: false
+    default: 'develop'
+
+  release-branch:
+    description: 'Persistent release branch containing the changelog commit.'
+    required: true
+
+  release-commit-subject:
+    description: 'Exact subject of the release changelog commit.'
+    required: true
+
+  release-revision:
+    description: 'Git revision containing the changelog commit.'
+    required: true
+
+  commit-user-name:
+    description: 'Git user name for the cherry-pick commit.'
+    required: false
+    default: 'github-actions[bot]'
+
+  commit-user-email:
+    description: 'Git user email for the cherry-pick commit.'
+    required: false
+    default: 'github-actions[bot]@users.noreply.github.com'
+
+  working-directory:
+    description: 'Checked-out caller repository containing the development branch.'
+    required: false
+    default: '.'
+
+
+runs:
+  using: 'node24'
+  main: 'dist/index.cjs'

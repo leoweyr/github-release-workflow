@@ -14,6 +14,6 @@ permissions:
 
 jobs:
   call-prepare:
-    uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@v2.0.0
+    uses: leoweyr/github-release-workflow/.github/workflows/reusable-prepare-release.yml@v2.1.0
     secrets:
       ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
